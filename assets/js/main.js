@@ -149,7 +149,7 @@
   var status = document.getElementById('form-status');
   /* Set data-endpoint on the <form> to POST somewhere real; without it we hand
      the enquiry to the visitor's mail client rather than pretending to send. */
-  var CONTACT = 'pilots@strideguide.com';
+  var CONTACT = 'pilots@strideguide.co';
 
   function setError(input, message) {
     input.setAttribute('aria-invalid', 'true');

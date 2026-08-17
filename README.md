@@ -64,12 +64,12 @@ adding `data-endpoint` to the form:
 It then `POST`s a `FormData` payload and reports success or failure inline.
 Without that attribute it falls back to opening the visitor's mail client with
 the fields pre-filled, addressed to the `CONTACT` constant in
-`assets/js/main.js` (currently `pilots@strideguide.com`) — update that address
+`assets/js/main.js` (currently `pilots@strideguide.co`) — update that address
 before launch.
 
 ## Before going live
 
-- Replace the `https://strideguide.com/` placeholder domain in the canonical
+- Replace the `https://strideguide.co/` placeholder domain in the canonical
   link, Open Graph/Twitter tags, JSON-LD, `robots.txt` and `sitemap.xml`.
 - Set the pilot form endpoint and contact address (above).
 - Serve with compression and long-lived cache headers on `/assets/*`.
