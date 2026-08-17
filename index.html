@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stride Guide™ — Retail Footwear Fitting Intelligence</title>
+<meta name="description" content="Stride Guide turns in-store pressure mapping into fitting intelligence, persistent customer Foot History™, and automated follow-up. Better fittings. Better follow-up. More returning customers.">
+<link rel="canonical" href="https://strideguide.com/">
+<meta name="theme-color" content="#080B09">
+<meta name="color-scheme" content="dark">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Stride Guide">
+<meta property="og:title" content="Stride Guide™ — Retail Footwear Fitting Intelligence">
+<meta property="og:description" content="In-store pressure mapping becomes fitting intelligence, customer Foot History™, and automated follow-up. Turn every step into a sale.™">
+<meta property="og:url" content="https://strideguide.com/">
+<meta property="og:image" content="https://strideguide.com/assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Stride Guide pressure-mapping platform with a plantar pressure heat map and live fitting analysis panel.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Stride Guide™ — Retail Footwear Fitting Intelligence">
+<meta name="twitter:description" content="Better fittings. Better follow-up. More returning customers.">
+<meta name="twitter:image" content="https://strideguide.com/assets/img/og-image.png">
+
+<link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/img/favicon.svg">
+<link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script>document.documentElement.classList.add('js');</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://strideguide.com/#organization",
+      "name": "Stride Guide",
+      "url": "https://strideguide.com/",
+      "slogan": "Turn every step into a sale.",
+      "description": "Stride Guide builds in-store footwear fitting intelligence for independent and specialty footwear retailers."
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://strideguide.com/#website",
+      "url": "https://strideguide.com/",
+      "name": "Stride Guide",
+      "publisher": { "@id": "https://strideguide.com/#organization" },
+      "inLanguage": "en-US"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Stride Guide",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": "https://strideguide.com/",
+      "description": "A retail footwear fitting platform that captures in-store plantar pressure and load data, builds a persistent customer fitting profile called Foot History, and supports permission-based customer follow-up.",
+      "publisher": { "@id": "https://strideguide.com/#organization" },
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Independent footwear retailers, running stores, comfort footwear stores, work boot retailers, specialty shoe stores"
+      },
+      "featureList": [
+        "Plantar pressure mapping and load capture",
+        "Fitting insights including arch profile, pressure balance and hotspots",
+        "Foot History longitudinal customer fitting records",
+        "Permission-based customer follow-up",
+        "Retail dashboard with store analytics and device health"
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<!-- ============================================================
+     Shared SVG definitions: plantar pressure ramp, foot geometry,
+     heat signatures. Referenced by every pressure map on the page.
+     ============================================================ -->
+<svg class="sg-defs" aria-hidden="true" focusable="false" width="0" height="0">
+  <defs>
+    <!-- Pressure intensity is authored as an alpha field, blurred for
+         sensel interpolation, then mapped through a single-hue ramp. -->
+    <filter id="pressureRamp" x="-20%" y="-12%" width="140%" height="124%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="3" result="field"/>
+      <feColorMatrix in="field" type="matrix" values="
+        0 0 0 1 0
+        0 0 0 1 0
+        0 0 0 1 0
+        0 0 0 0 1" result="gray"/>
+      <feComponentTransfer in="gray">
+        <feFuncR type="table" tableValues="0.02 0.03 0.04 0.05 0.08 0.14 0.22 0.62 0.94"/>
+        <feFuncG type="table" tableValues="0.09 0.20 0.31 0.43 0.57 0.80 1 1 0.97"/>
+        <feFuncB type="table" tableValues="0.09 0.21 0.27 0.29 0.30 0.35 0.08 0.45 0.94"/>
+        <feFuncA type="table" tableValues="0 0.42 0.72 0.88 0.96 1 1 1 1"/>
+      </feComponentTransfer>
+    </filter>
+
+    <radialGradient id="blob">
+      <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+      <stop offset=".35" stop-color="#fff" stop-opacity=".72"/>
+      <stop offset=".62" stop-color="#fff" stop-opacity=".36"/>
+      <stop offset=".82" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+
+    <pattern id="sensorGrid" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M8 0H0v8" fill="none" stroke="#F5F7F5" stroke-opacity=".05" stroke-width=".5"/>
+    </pattern>
+
+    <linearGradient id="scanSweep" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#39FF14" stop-opacity="0"/>
+      <stop offset=".55" stop-color="#39FF14" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#39FF14" stop-opacity="0"/>
+    </linearGradient>
+
+    <clipPath id="clipSurface"><rect x="20" y="20" width="240" height="300" rx="8"/></clipPath>
+
+    <linearGradient id="rampLegend" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#06251f"/>
+      <stop offset=".25" stop-color="#0b5a35"/>
+      <stop offset=".5" stop-color="#14853f"/>
+      <stop offset=".7" stop-color="#24C95A"/>
+      <stop offset=".86" stop-color="#39FF14"/>
+      <stop offset="1" stop-color="#EAFFE2"/>
+    </linearGradient>
+
+    <!-- Right-foot silhouette: body + five toe contacts. -->
+    <g id="footShape">
+      <path d="M22 84c-4-18 6-30 22-32 14-2 28 5 34 19 6 14 6 34 4 54-2 21-4 39-6 58-1 24-8 50-26 53-18-3-25-28-25-50 0-18 3-36 5-54 2-19-4-34-8-48Z"/>
+      <ellipse cx="30" cy="30" rx="12.5" ry="15.5" transform="rotate(-9 30 30)"/>
+      <ellipse cx="52" cy="27" rx="7.5" ry="9.5" transform="rotate(-4 52 27)"/>
+      <ellipse cx="66" cy="31" rx="7" ry="8.8"/>
+      <ellipse cx="76" cy="39" rx="6.2" ry="7.8" transform="rotate(12 76 39)"/>
+      <ellipse cx="84.5" cy="49" rx="5.6" ry="6.6" transform="rotate(20 84.5 49)"/>
+    </g>
+    <!-- Clip shapes are repeated rather than referenced with <use>: browsers
+         do not honour <use> inside <clipPath>. -->
+    <clipPath id="clipFoot">
+      <path d="M22 84c-4-18 6-30 22-32 14-2 28 5 34 19 6 14 6 34 4 54-2 21-4 39-6 58-1 24-8 50-26 53-18-3-25-28-25-50 0-18 3-36 5-54 2-19-4-34-8-48Z"/>
+      <ellipse cx="30" cy="30" rx="12.5" ry="15.5" transform="rotate(-9 30 30)"/>
+      <ellipse cx="52" cy="27" rx="7.5" ry="9.5" transform="rotate(-4 52 27)"/>
+      <ellipse cx="66" cy="31" rx="7" ry="8.8"/>
+      <ellipse cx="76" cy="39" rx="6.2" ry="7.8" transform="rotate(12 76 39)"/>
+      <ellipse cx="84.5" cy="49" rx="5.6" ry="6.6" transform="rotate(20 84.5 49)"/>
+    </clipPath>
+
+    <!-- Heat signature: baseline scan, right foot (high arch, forefoot peak). -->
+    <g id="heatRightBase" fill="url(#blob)">
+      <circle cx="50" cy="208" r="30" opacity=".92" class="hot hot--slow"/>
+      <circle cx="61" cy="197" r="20" opacity=".55" class="hot"/>
+      <circle cx="40" cy="215" r="16" opacity=".48"/>
+      <circle cx="73" cy="155" r="16" opacity=".5" class="hot hot--slow"/>
+      <circle cx="77" cy="130" r="14" opacity=".45"/>
+      <circle cx="38" cy="145" r="15" opacity=".2"/>
+      <circle cx="35" cy="74" r="16" opacity=".8" class="hot"/>
+      <circle cx="52" cy="68" r="15" opacity="1" class="hot hot--peak"/>
+      <circle cx="65" cy="73" r="13" opacity=".85" class="hot"/>
+      <circle cx="75" cy="84" r="12" opacity=".62"/>
+      <circle cx="81" cy="98" r="13" opacity=".6" class="hot hot--slow"/>
+      <circle cx="30" cy="31" r="13" opacity=".72" class="hot"/>
+      <circle cx="52" cy="27" r="8.5" opacity=".54"/>
+      <circle cx="66" cy="31" r="8" opacity=".48"/>
+      <circle cx="76" cy="39" r="7" opacity=".4"/>
+      <circle cx="84.5" cy="49" r="6.5" opacity=".34"/>
+    </g>
+
+    <!-- Heat signature: baseline scan, left foot (drawn right-handed, mirrored on use). -->
+    <g id="heatLeftBase" fill="url(#blob)">
+      <circle cx="50" cy="211" r="31" opacity=".95" class="hot hot--slow"/>
+      <circle cx="42" cy="203" r="19" opacity=".5" class="hot"/>
+      <circle cx="60" cy="200" r="17" opacity=".42"/>
+      <circle cx="74" cy="158" r="15" opacity=".42"/>
+      <circle cx="37" cy="147" r="16" opacity=".26"/>
+      <circle cx="34" cy="76" r="17" opacity=".72" class="hot"/>
+      <circle cx="51" cy="70" r="14" opacity=".78" class="hot hot--slow"/>
+      <circle cx="64" cy="75" r="13" opacity=".7"/>
+      <circle cx="74" cy="86" r="11" opacity=".5" class="hot"/>
+      <circle cx="80" cy="100" r="12" opacity=".48"/>
+      <circle cx="29" cy="33" r="13" opacity=".66" class="hot"/>
+      <circle cx="51" cy="29" r="8" opacity=".48"/>
+      <circle cx="65" cy="33" r="7.5" opacity=".42"/>
+      <circle cx="75" cy="41" r="7" opacity=".34"/>
+      <circle cx="84" cy="51" r="6.5" opacity=".28"/>
+    </g>
+
+    <!-- Heat signature: improved distribution (second fitting). -->
+    <g id="heatImproved" fill="url(#blob)">
+      <circle cx="50" cy="209" r="29" opacity=".78"/>
+      <circle cx="44" cy="205" r="20" opacity=".6"/>
+      <circle cx="72" cy="152" r="17" opacity=".4"/>
+      <circle cx="38" cy="146" r="18" opacity=".38"/>
+      <circle cx="35" cy="75" r="17" opacity=".7"/>
+      <circle cx="52" cy="70" r="15" opacity=".72"/>
+      <circle cx="65" cy="74" r="14" opacity=".7"/>
+      <circle cx="76" cy="86" r="12" opacity=".58"/>
+      <circle cx="81" cy="99" r="12" opacity=".5"/>
+      <circle cx="30" cy="32" r="12" opacity=".5"/>
+      <circle cx="52" cy="28" r="7.5" opacity=".36"/>
+      <circle cx="66" cy="32" r="7" opacity=".3"/>
+      <circle cx="76" cy="40" r="6" opacity=".24"/>
+    </g>
+
+    <!-- Heat signature: increased heel loading (later fitting). -->
+    <g id="heatHeelLoad" fill="url(#blob)">
+      <circle cx="48" cy="212" r="33" opacity="1"/>
+      <circle cx="39" cy="206" r="22" opacity=".85"/>
+      <circle cx="58" cy="199" r="18" opacity=".55"/>
+      <circle cx="72" cy="156" r="15" opacity=".34"/>
+      <circle cx="38" cy="148" r="15" opacity=".3"/>
+      <circle cx="34" cy="77" r="15" opacity=".54"/>
+      <circle cx="51" cy="71" r="13" opacity=".56"/>
+      <circle cx="64" cy="76" r="12" opacity=".5"/>
+      <circle cx="75" cy="88" r="11" opacity=".4"/>
+      <circle cx="30" cy="33" r="11" opacity=".4"/>
+      <circle cx="52" cy="29" r="7" opacity=".28"/>
+      <circle cx="66" cy="33" r="6.5" opacity=".24"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="site-header" id="site-header">
+  <div class="shell site-header__inner">
+    <a class="logo" href="#top" aria-label="Stride Guide home">
+      <svg class="logo__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <rect x="1" y="1" width="30" height="30" rx="8" fill="#111713" stroke="#2B3630"/>
+        <path d="M9 22.5c3.4 0 5-2.2 5.6-4.6.7-2.7 2.3-4.4 5.4-4.4" stroke="#39FF14" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M12 9.5h8" stroke="#24C95A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <circle cx="23.5" cy="22.5" r="1.8" fill="#39FF14"/>
+      </svg>
+      <span class="logo__type">STRIDE GUIDE<span class="tm">™</span></span>
+    </a>
+
+    <nav class="site-nav" id="site-nav" aria-label="Main">
+      <ul class="site-nav__list">
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#foot-history">Foot History</a></li>
+        <li><a href="#for-retailers">For Retailers</a></li>
+        <li><a href="#technology">Technology</a></li>
+        <li><a href="#early-access">Early Access</a></li>
+      </ul>
+      <a class="btn btn--primary btn--sm site-nav__cta" href="#early-access">Request a Pilot</a>
+    </nav>
+
+    <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+      <span class="nav-toggle__bars" aria-hidden="true"></span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+  <span id="top"></span>
+
+  <!-- ==================== HERO ==================== -->
+  <section class="hero">
+    <div class="hero__grid shell">
+      <div class="hero__copy">
+        <p class="eyebrow reveal">Retail Footwear Fitting Intelligence</p>
+        <h1 class="hero__title reveal">Your customer’s next pair of shoes starts with their <span class="accent">first step.</span></h1>
+        <p class="hero__lede reveal">Stride Guide™ transforms in-store pressure mapping into actionable fitting intelligence, customer history, and automated follow-up—giving footwear retailers a smarter way to fit customers and a reason to bring them back.</p>
+        <div class="hero__actions reveal">
+          <a class="btn btn--primary btn--lg" href="#early-access">Bring Stride Guide to My Store</a>
+          <a class="btn btn--ghost btn--lg" href="#how-it-works">See How It Works</a>
+        </div>
+        <p class="hero__value reveal"><strong>Better fittings. Better follow-up. More returning customers.</strong></p>
+        <ul class="hero__tags reveal" role="list">
+          <li>Running &amp; specialty retail</li>
+          <li>Comfort footwear</li>
+          <li>Work boots</li>
+        </ul>
+      </div>
+
+      <div class="hero__viz reveal reveal--viz">
+        <figure class="platform">
+          <svg class="platform__svg" viewBox="0 0 280 340" role="img" aria-labelledby="platform-title platform-desc">
+            <title id="platform-title">Stride Guide pressure platform showing a plantar pressure heat map of both feet</title>
+            <desc id="platform-desc">An interpolated pressure map of a two-foot standing scan. Highest pressure appears at both heels and the metatarsal heads, with the strongest reading at the right forefoot, moderate loading along the lateral edges, light toe contact and minimal arch contact.</desc>
+
+            <rect x="10" y="10" width="260" height="320" rx="14" fill="#0B0F0C" stroke="#242D27"/>
+            <rect x="20" y="20" width="240" height="300" rx="8" fill="#0E120F"/>
+            <rect x="20" y="20" width="240" height="300" rx="8" fill="url(#sensorGrid)"/>
+
+            <g class="platform__brackets" stroke="#39FF14" stroke-opacity=".55" stroke-width="1.4" fill="none" stroke-linecap="square">
+              <path d="M28 44V28h16"/><path d="M236 28h16v16"/>
+              <path d="M28 296v16h16"/><path d="M252 296v16h-16"/>
+            </g>
+
+            <g class="heatmap">
+              <g transform="translate(130 40) scale(-1 1)">
+                <use href="#footShape" class="foot-line"/>
+                <g class="breathe breathe--alt">
+                  <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatLeftBase"/></g>
+                </g>
+              </g>
+              <g transform="translate(150 40)">
+                <use href="#footShape" class="foot-line"/>
+                <g class="breathe">
+                  <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)">
+                    <use href="#heatRightBase"/>
+                    <!-- Primary hotspot, pulsed to read as live sensor activity. -->
+                    <circle class="hot-peak" cx="52" cy="68" r="14" fill="url(#blob)" opacity=".5"/>
+                  </g>
+                </g>
+              </g>
+            </g>
+
+            <g class="cop" stroke="#F5F7F5" stroke-opacity=".7" stroke-width="1" fill="none">
+              <path d="M76 188h12M82 182v12"/>
+              <circle cx="82" cy="188" r="4.5" stroke-opacity=".45"/>
+              <path d="M202 190h12M208 184v12"/>
+              <circle cx="208" cy="190" r="4.5" stroke-opacity=".45"/>
+            </g>
+
+            <g class="platform__sweep" aria-hidden="true" clip-path="url(#clipSurface)">
+              <rect x="20" y="-44" width="240" height="44" fill="url(#scanSweep)"/>
+            </g>
+
+            <text x="30" y="332" class="platform__etch">STRIDE GUIDE SG-0001</text>
+            <circle cx="252" cy="328" r="3" fill="#39FF14" class="led"/>
+          </svg>
+          <figcaption class="platform__legend">
+            <span class="platform__legend-label">HIGH</span>
+            <span class="platform__legend-bar" aria-hidden="true"></span>
+            <span class="platform__legend-label">LOW</span>
+          </figcaption>
+        </figure>
+
+        <div class="readout" aria-label="Live fitting analysis">
+          <div class="readout__head">
+            <h2 class="readout__title">LIVE FITTING</h2>
+            <span class="live"><span class="live__dot" aria-hidden="true"></span>LIVE</span>
+          </div>
+          <dl class="readout__list">
+            <div class="readout__row"><dt>Customer</dt><dd>Returning Customer</dd></div>
+            <div class="readout__row"><dt>Scan Quality</dt><dd class="is-good">Excellent</dd></div>
+            <div class="readout__row"><dt>Arch Profile</dt><dd>High</dd></div>
+            <div class="readout__row">
+              <dt>Pressure Balance</dt>
+              <dd>
+                <span class="balance__value">48% / 52%</span>
+                <span class="balance" aria-hidden="true"><span class="balance__fill" style="--left:48%"></span></span>
+              </dd>
+            </div>
+            <div class="readout__row"><dt>Primary Hotspot</dt><dd class="is-hot">Right Forefoot</dd></div>
+            <div class="readout__row"><dt>Gait Indicator</dt><dd>Supination Tendency</dd></div>
+            <div class="readout__row"><dt>Previous Scans</dt><dd>3</dd></div>
+          </dl>
+          <p class="readout__foot">Session saved to this customer’s Foot History™</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== RULE OF 3 ==================== -->
+  <section class="section section--rule" id="rule-of-three" aria-labelledby="rule-title">
+    <div class="shell">
+      <header class="section__head section__head--center">
+        <p class="eyebrow reveal">The Rule of 3</p>
+        <h2 class="section__title reveal" id="rule-title">Scan. <span class="accent">Sell.</span> Sustain.</h2>
+        <p class="section__lede reveal">Three steps every fitting, every visit—and it repeats. That’s the whole system.</p>
+      </header>
+
+      <ol class="tiles" role="list">
+        <li class="tile reveal">
+          <p class="tile__idx">01</p>
+          <h3 class="tile__word">Scan</h3>
+          <p class="tile__line">Capture the fitting</p>
+          <p class="tile__body">The customer steps onto the platform and stands naturally. Stride Guide captures plantar pressure and load in seconds—no appointment, no training course.</p>
+          <div class="tile__art" aria-hidden="true">
+            <svg viewBox="0 0 120 96">
+              <rect x="2" y="10" width="116" height="76" rx="6" fill="#0E120F" stroke="#242D27"/>
+              <rect x="2" y="10" width="116" height="76" rx="6" fill="url(#sensorGrid)"/>
+              <g transform="translate(64 17) scale(0.25)">
+                <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatRightBase"/></g>
+              </g>
+              <g transform="translate(56 17) scale(-0.25 0.25)">
+                <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatLeftBase"/></g>
+              </g>
+            </svg>
+          </div>
+        </li>
+
+        <li class="tile reveal">
+          <p class="tile__idx">02</p>
+          <h3 class="tile__word">Sell</h3>
+          <p class="tile__line">Back the recommendation</p>
+          <p class="tile__body">Your associate sees arch profile, balance and hotspots on screen—so the footwear conversation is grounded in something the customer can actually look at.</p>
+          <div class="tile__art" aria-hidden="true">
+            <svg viewBox="0 0 120 96">
+              <rect x="2" y="10" width="116" height="76" rx="6" fill="#0E120F" stroke="#242D27"/>
+              <g class="tile__meters">
+                <text x="12" y="30" class="tile__lbl">ARCH PROFILE</text>
+                <rect x="12" y="34" width="96" height="4" rx="2" fill="#1B211D"/>
+                <rect x="12" y="34" width="78" height="4" rx="2" fill="#39FF14"/>
+                <text x="12" y="54" class="tile__lbl">BALANCE</text>
+                <rect x="12" y="58" width="96" height="4" rx="2" fill="#1B211D"/>
+                <rect x="12" y="58" width="46" height="4" rx="2" fill="#24C95A"/>
+                <text x="12" y="78" class="tile__lbl">FOREFOOT LOAD</text>
+                <rect x="12" y="82" width="96" height="4" rx="2" fill="#1B211D"/>
+                <rect x="12" y="82" width="88" height="4" rx="2" fill="#39FF14"/>
+              </g>
+            </svg>
+          </div>
+        </li>
+
+        <li class="tile reveal">
+          <p class="tile__idx">03</p>
+          <h3 class="tile__word">Sustain</h3>
+          <p class="tile__line">Keep the relationship</p>
+          <p class="tile__body">The session saves to the customer’s Foot History™, and permission-based follow-up turns one good fitting into a returning customer.</p>
+          <div class="tile__art" aria-hidden="true">
+            <svg viewBox="0 0 120 96">
+              <rect x="2" y="10" width="116" height="76" rx="6" fill="#0E120F" stroke="#242D27"/>
+              <path d="M20 62h80" stroke="#242D27" stroke-width="1"/>
+              <g fill="#24C95A">
+                <circle cx="24" cy="62" r="4"/><circle cx="60" cy="62" r="4"/>
+              </g>
+              <circle cx="96" cy="62" r="5" fill="#39FF14"/>
+              <path d="M24 48c18-14 54-14 72 0" fill="none" stroke="#39FF14" stroke-opacity=".55" stroke-width="1.4" stroke-dasharray="3 3"/>
+              <path d="M92 46l6 3-4 5" fill="none" stroke="#39FF14" stroke-opacity=".8" stroke-width="1.4"/>
+              <text x="24" y="80" class="tile__lbl" text-anchor="middle">VISIT 1</text>
+              <text x="60" y="80" class="tile__lbl" text-anchor="middle">VISIT 2</text>
+              <text x="96" y="80" class="tile__lbl" text-anchor="middle">RETURN</text>
+            </svg>
+          </div>
+        </li>
+      </ol>
+
+      <p class="rule__loop reveal">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Then it repeats—and every repeat starts with more than the last one did.
+      </p>
+    </div>
+  </section>
+
+  <!-- ==================== PROBLEM ==================== -->
+  <section class="section section--problem" id="problem" aria-labelledby="problem-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow reveal">The Problem</p>
+        <h2 class="section__title reveal" id="problem-title">Most footwear fittings disappear the moment the customer leaves.</h2>
+      </header>
+
+      <div class="compare">
+        <article class="flow flow--old reveal">
+          <h3 class="flow__title">Traditional fitting</h3>
+          <ol class="flow__steps" role="list">
+            <li class="chip">Customer enters</li>
+            <li class="chip">Employee helps</li>
+            <li class="chip">Customer purchases</li>
+            <li class="chip chip--lost">Customer disappears</li>
+          </ol>
+          <p class="flow__note">The expertise stays in the room. Nothing follows the customer home.</p>
+        </article>
+
+        <article class="flow flow--new reveal">
+          <h3 class="flow__title"><span class="flow__brand">Stride Guide</span></h3>
+          <ol class="flow__steps" role="list">
+            <li class="chip">Customer enters</li>
+            <li class="chip chip--live">Scan</li>
+            <li class="chip">Fit</li>
+            <li class="chip chip--live">Profile Created</li>
+            <li class="chip">Purchase</li>
+            <li class="chip chip--live">Follow-Up</li>
+            <li class="chip">Return Visit</li>
+            <li class="chip chip--live">New Scan</li>
+            <li class="chip chip--gain">Better Customer Intelligence</li>
+          </ol>
+          <p class="flow__loop">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Every cycle makes the next fitting better.
+          </p>
+        </article>
+      </div>
+
+      <p class="section__closer reveal">Retailers already spend time helping customers find the right footwear. Stride Guide turns that interaction into structured, reusable customer intelligence.</p>
+    </div>
+  </section>
+
+  <!-- ==================== HOW IT WORKS ==================== -->
+  <section class="section" id="how-it-works" aria-labelledby="how-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow reveal">How It Works</p>
+        <h2 class="section__title reveal" id="how-title">Four steps. About the length of a normal fitting.</h2>
+      </header>
+
+      <ol class="steps" role="list">
+        <li class="step reveal">
+          <span class="step__num">01</span>
+          <h3 class="step__title">Identify</h3>
+          <p class="step__body">Customer enters their phone number to access or create their Stride Guide profile.</p>
+          <div class="step__art" aria-hidden="true">
+            <div class="keypad">
+              <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+              <span>7</span><span>8</span><span>9</span><span class="keypad__wide">(•••) •••-4417</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step reveal">
+          <span class="step__num">02</span>
+          <h3 class="step__title">Step</h3>
+          <p class="step__body">The customer stands naturally on the Stride Guide platform while pressure and load sensors capture the fitting session.</p>
+          <div class="step__art" aria-hidden="true">
+            <svg viewBox="0 0 160 100" class="step__svg">
+              <rect x="12" y="30" width="136" height="52" rx="6" fill="#0E120F" stroke="#242D27"/>
+              <rect x="12" y="30" width="136" height="52" rx="6" fill="url(#sensorGrid)"/>
+              <g transform="translate(82 34) scale(0.18)">
+                <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatRightBase"/></g>
+              </g>
+              <g transform="translate(78 34) scale(-0.18 0.18)">
+                <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatLeftBase"/></g>
+              </g>
+              <text x="80" y="94" class="step__svg-label">LOAD + PRESSURE CAPTURE</text>
+            </svg>
+          </div>
+        </li>
+
+        <li class="step reveal">
+          <span class="step__num">03</span>
+          <h3 class="step__title">Understand</h3>
+          <p class="step__body">Stride Guide converts sensor information into an intuitive pressure visualization and fitting insights.</p>
+          <ul class="insights" role="list">
+            <li>Pressure hotspots</li>
+            <li>Arch contact</li>
+            <li>Left/right balance</li>
+            <li>Heel/forefoot loading</li>
+            <li>Potential pronation/supination indicators</li>
+          </ul>
+        </li>
+
+        <li class="step reveal">
+          <span class="step__num">04</span>
+          <h3 class="step__title">Remember</h3>
+          <p class="step__body">The fitting becomes part of the customer’s Foot History™, creating a longitudinal record that can improve future fitting experiences.</p>
+          <div class="step__art" aria-hidden="true">
+            <div class="ministack">
+              <span class="ministack__row"><i>JUN 2026</i>Baseline scan</span>
+              <span class="ministack__row"><i>SEP 2026</i>Second fitting</span>
+              <span class="ministack__row ministack__row--next"><i>MAR 2027</i>New fitting</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ==================== FOOT HISTORY ==================== -->
+  <section class="section section--history" id="foot-history" aria-labelledby="history-title">
+    <div class="shell">
+      <header class="section__head section__head--center">
+        <p class="eyebrow reveal">Foot History™</p>
+        <h2 class="section__title section__title--xl reveal" id="history-title">One fitting is useful. <span class="accent">A history of fittings is intelligence.</span></h2>
+        <p class="section__lede reveal">Every scan adds another data point to the customer’s record. Over time, a single fitting becomes a trend line your associates can actually use—and a reason for the customer to come back to you instead of a search box.</p>
+      </header>
+
+      <ol class="timeline" role="list">
+        <li class="timeline__item reveal">
+          <div class="timeline__marker" aria-hidden="true"><span></span></div>
+          <p class="timeline__date">JUN 2026</p>
+          <div class="timeline__card">
+            <figure class="thumb">
+              <svg viewBox="0 0 120 300" role="img" aria-label="Baseline pressure map: concentrated forefoot and heel pressure with minimal arch contact.">
+                <rect width="120" height="300" rx="8" fill="#0E120F"/>
+                <rect width="120" height="300" rx="8" fill="url(#sensorGrid)"/>
+                <g transform="translate(10 20)">
+                  <use href="#footShape" class="foot-line"/>
+                  <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatRightBase"/></g>
+                </g>
+              </svg>
+            </figure>
+            <ul class="timeline__facts" role="list">
+              <li>High Arch</li>
+              <li>Right Forefoot Hotspot</li>
+              <li class="is-tagged">Baseline Scan</li>
+            </ul>
+            <p class="timeline__body">First visit. The scan establishes the customer’s starting point and creates the profile everything else attaches to.</p>
+          </div>
+        </li>
+
+        <li class="timeline__item reveal">
+          <div class="timeline__marker" aria-hidden="true"><span></span></div>
+          <p class="timeline__date">SEP 2026</p>
+          <div class="timeline__card">
+            <figure class="thumb">
+              <svg viewBox="0 0 120 300" role="img" aria-label="Second fitting pressure map: pressure spread more evenly across forefoot, midfoot and heel.">
+                <rect width="120" height="300" rx="8" fill="#0E120F"/>
+                <rect width="120" height="300" rx="8" fill="url(#sensorGrid)"/>
+                <g transform="translate(10 20)">
+                  <use href="#footShape" class="foot-line"/>
+                  <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatImproved"/></g>
+                </g>
+              </svg>
+            </figure>
+            <ul class="timeline__facts" role="list">
+              <li>Improved Pressure Distribution</li>
+              <li class="is-tagged">Second Fitting</li>
+            </ul>
+            <p class="timeline__body">Three months in. The comparison view shows load spreading more evenly—useful context for what to put on their feet next.</p>
+          </div>
+        </li>
+
+        <li class="timeline__item reveal">
+          <div class="timeline__marker timeline__marker--alert" aria-hidden="true"><span></span></div>
+          <p class="timeline__date">MAR 2027</p>
+          <div class="timeline__card timeline__card--alert">
+            <figure class="thumb">
+              <svg viewBox="0 0 120 300" role="img" aria-label="Later pressure map: noticeably increased heel loading compared with earlier scans.">
+                <rect width="120" height="300" rx="8" fill="#0E120F"/>
+                <rect width="120" height="300" rx="8" fill="url(#sensorGrid)"/>
+                <g transform="translate(110 20) scale(-1 1)">
+                  <use href="#footShape" class="foot-line"/>
+                  <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatHeelLoad"/></g>
+                </g>
+              </svg>
+            </figure>
+            <ul class="timeline__facts" role="list">
+              <li>Increased Left Heel Loading</li>
+              <li class="is-tagged is-tagged--alert">New Fitting Recommended</li>
+            </ul>
+            <p class="timeline__body">Nine months later, the pattern has shifted. Stride Guide flags the change and gives your team a specific, honest reason to reach out.</p>
+          </div>
+        </li>
+      </ol>
+
+      <blockquote class="pullquote reveal">
+        <p>Your customer’s fitting history doesn’t reset every time they walk through the door.</p>
+      </blockquote>
+    </div>
+  </section>
+
+  <!-- ==================== RETENTION ==================== -->
+  <section class="section section--retention" id="retention" aria-labelledby="retention-title">
+    <div class="shell">
+      <div class="split">
+        <div class="split__copy">
+          <p class="eyebrow reveal">Customer Retention</p>
+          <h2 class="section__title reveal" id="retention-title">The fitting shouldn’t end at checkout.</h2>
+          <p class="section__lede reveal">Stride Guide keeps the conversation going with permission-based messages tied to the customer’s actual fitting record—not a generic blast list.</p>
+          <ul class="checklist reveal" role="list">
+            <li>Messages reference the fitting the customer actually had.</li>
+            <li>Cadence and wording stay under retailer control.</li>
+            <li>Every send is a reason to walk back into your store.</li>
+          </ul>
+          <p class="privacy-note reveal">
+            <svg viewBox="0 0 24 24" class="icon" aria-hidden="true" focusable="false"><path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 12l2.2 2.2L15.5 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            Customer contact information remains controlled and protected. Stride Guide does not sell customer information.
+          </p>
+        </div>
+
+        <div class="split__viz reveal">
+          <div class="thread" aria-label="Example automated follow-up timeline">
+            <div class="thread__row">
+              <p class="thread__when">TODAY</p>
+              <p class="msg">“Thanks for visiting [Store Name]. Your Stride Guide fitting profile has been saved.”</p>
+            </div>
+            <div class="thread__row">
+              <p class="thread__when">7 DAYS</p>
+              <p class="msg">“How are your new shoes feeling?”</p>
+            </div>
+            <div class="thread__row">
+              <p class="thread__when">90 DAYS</p>
+              <p class="msg">“It’s been a few months since your fitting. Stop in for a complimentary Stride Guide re-scan.”</p>
+            </div>
+            <div class="thread__row thread__row--future">
+              <p class="thread__when">FUTURE</p>
+              <p class="msg msg--future">Personalized re-engagement based on customer history and retailer preferences.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== DASHBOARD / FOR RETAILERS ==================== -->
+  <section class="section section--dash" id="for-retailers" aria-labelledby="dash-title">
+    <div class="shell">
+      <header class="section__head section__head--center">
+        <p class="eyebrow reveal">Retail Dashboard</p>
+        <h2 class="section__title reveal" id="dash-title">Everything your store learns, in one place.</h2>
+        <p class="section__lede reveal">One dashboard for scans, customers, follow-ups and device status—built for the person running the floor, not a lab.</p>
+      </header>
+
+      <div class="dash reveal" role="group" aria-label="Stride Guide retail dashboard preview">
+        <div class="dash__bar" aria-hidden="true">
+          <span class="dash__dots"><i></i><i></i><i></i></span>
+          <span class="dash__crumb">Stride Guide · Northside Running Co.</span>
+          <span class="dash__avatar">DM</span>
+        </div>
+
+        <div class="dash__body">
+          <nav class="dash__side" aria-label="Dashboard sections (preview)">
+            <p class="dash__side-label">STORE</p>
+            <ul role="list">
+              <li class="is-active"><span class="dash__ico" aria-hidden="true"></span>Store Overview</li>
+              <li><span class="dash__ico" aria-hidden="true"></span>Customer Profiles</li>
+              <li><span class="dash__ico" aria-hidden="true"></span>Foot History</li>
+              <li><span class="dash__ico" aria-hidden="true"></span>Scan Comparison</li>
+              <li><span class="dash__ico" aria-hidden="true"></span>Follow-Up Queue</li>
+              <li><span class="dash__ico" aria-hidden="true"></span>Device Health</li>
+              <li><span class="dash__ico" aria-hidden="true"></span>Store Analytics</li>
+            </ul>
+          </nav>
+
+          <div class="dash__main">
+            <h3 class="dash__h">STORE OVERVIEW</h3>
+            <div class="kpis">
+              <div class="kpi">
+                <p class="kpi__label">Scans Today</p>
+                <p class="kpi__value" data-count="14">14</p>
+                <p class="kpi__trend">+4 vs. yesterday</p>
+              </div>
+              <div class="kpi">
+                <p class="kpi__label">Returning Customers</p>
+                <p class="kpi__value" data-count="6">6</p>
+                <p class="kpi__trend">43% of today’s scans</p>
+              </div>
+              <div class="kpi">
+                <p class="kpi__label">New Profiles</p>
+                <p class="kpi__value" data-count="8">8</p>
+                <p class="kpi__trend">Added to Foot History</p>
+              </div>
+              <div class="kpi">
+                <p class="kpi__label">Average Scan Quality</p>
+                <p class="kpi__value" data-count="96" data-suffix="%">96%</p>
+                <p class="kpi__trend kpi__trend--good">Excellent</p>
+              </div>
+            </div>
+
+            <div class="dash__grid">
+              <article class="panel panel--wide">
+                <header class="panel__head"><h4>Store Analytics</h4><span class="panel__meta">Scans · last 14 days</span></header>
+                <div class="chart" role="img" aria-label="Bar chart of daily scans over the last 14 days, trending upward from 5 to 14 scans per day.">
+                  <span class="chart__bar" style="--h:36%"></span><span class="chart__bar" style="--h:48%"></span>
+                  <span class="chart__bar" style="--h:42%"></span><span class="chart__bar" style="--h:57%"></span>
+                  <span class="chart__bar" style="--h:64%"></span><span class="chart__bar" style="--h:52%"></span>
+                  <span class="chart__bar" style="--h:71%"></span><span class="chart__bar" style="--h:66%"></span>
+                  <span class="chart__bar" style="--h:78%"></span><span class="chart__bar" style="--h:85%"></span>
+                  <span class="chart__bar" style="--h:74%"></span><span class="chart__bar" style="--h:88%"></span>
+                  <span class="chart__bar" style="--h:92%"></span><span class="chart__bar chart__bar--now" style="--h:100%"></span>
+                </div>
+              </article>
+
+              <article class="panel">
+                <header class="panel__head"><h4>Scan Comparison</h4><span class="panel__meta">M. Alvarez</span></header>
+                <div class="compare-mini">
+                  <figure>
+                    <svg viewBox="0 0 100 260" role="img" aria-label="Earlier scan: concentrated forefoot pressure.">
+                      <g transform="translate(0 0)">
+                        <use href="#footShape" class="foot-line"/>
+                        <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatRightBase"/></g>
+                      </g>
+                    </svg>
+                    <figcaption>JUN 2026</figcaption>
+                  </figure>
+                  <span class="compare-mini__delta" aria-hidden="true">→</span>
+                  <figure>
+                    <svg viewBox="0 0 100 260" role="img" aria-label="Latest scan: more even pressure distribution.">
+                      <g transform="translate(0 0)">
+                        <use href="#footShape" class="foot-line"/>
+                        <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatImproved"/></g>
+                      </g>
+                    </svg>
+                    <figcaption>SEP 2026</figcaption>
+                  </figure>
+                </div>
+                <p class="panel__note">Forefoot peak ↓ · Midfoot ↑</p>
+              </article>
+
+              <article class="panel">
+                <header class="panel__head"><h4>Customer Profiles</h4><span class="panel__meta">Recent</span></header>
+                <ul class="rows" role="list">
+                  <li><span class="rows__id">SG·4417</span><span class="rows__txt">High arch · 4 scans</span><span class="tag">Returning</span></li>
+                  <li><span class="rows__id">SG·4418</span><span class="rows__txt">Neutral · 1 scan</span><span class="tag tag--new">New</span></li>
+                  <li><span class="rows__id">SG·4419</span><span class="rows__txt">Low arch · 2 scans</span><span class="tag">Returning</span></li>
+                </ul>
+              </article>
+
+              <article class="panel">
+                <header class="panel__head"><h4>Follow-Up Queue</h4><span class="panel__meta">Scheduled</span></header>
+                <ul class="rows" role="list">
+                  <li><span class="rows__id">7 DAY</span><span class="rows__txt">Comfort check-in</span><span class="tag tag--queue">3 queued</span></li>
+                  <li><span class="rows__id">90 DAY</span><span class="rows__txt">Re-scan invitation</span><span class="tag tag--queue">11 queued</span></li>
+                  <li><span class="rows__id">FLAGGED</span><span class="rows__txt">Loading change detected</span><span class="tag tag--alert">2 review</span></li>
+                </ul>
+              </article>
+
+              <article class="panel panel--device">
+                <header class="panel__head"><h4>Device Health</h4><span class="live live--sm"><span class="live__dot" aria-hidden="true"></span>LIVE</span></header>
+                <p class="device__name">STRIDE GUIDE SG-0001</p>
+                <dl class="device__list">
+                  <div><dt>Status</dt><dd class="is-good">Online <span class="dot" aria-hidden="true"></span></dd></div>
+                  <div><dt>Firmware</dt><dd>Current</dd></div>
+                  <div><dt>Pressure Sensors</dt><dd class="is-good">Operational</dd></div>
+                  <div><dt>Load Sensors</dt><dd class="is-good">Operational</dd></div>
+                  <div><dt>Last Sync</dt><dd>12 seconds ago</dd></div>
+                </dl>
+              </article>
+
+              <article class="panel">
+                <header class="panel__head"><h4>Foot History</h4><span class="panel__meta">Store totals</span></header>
+                <div class="stat-pair">
+                  <p><span class="stat-pair__num" data-count="612">612</span><span>profiles</span></p>
+                  <p><span class="stat-pair__num" data-count="1489">1489</span><span>scans stored</span></p>
+                </div>
+                <p class="panel__note">Longitudinal records grow with every visit.</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Built for retailers -->
+      <div class="retailers">
+        <header class="section__head section__head--center">
+          <p class="eyebrow reveal">Built For Retailers</p>
+          <h2 class="section__title reveal">Advanced fitting intelligence without enterprise-sized hardware costs.</h2>
+        </header>
+        <div class="cols">
+          <article class="card reveal">
+            <p class="card__kicker">Fit</p>
+            <h3 class="card__title">Give associates a visual tool</h3>
+            <p class="card__body">Give associates an intuitive visual tool to support better footwear conversations.</p>
+          </article>
+          <article class="card reveal">
+            <p class="card__kicker">Remember</p>
+            <h3 class="card__title">Stop starting from zero</h3>
+            <p class="card__body">Create persistent customer fitting profiles instead of starting from zero every visit.</p>
+          </article>
+          <article class="card reveal">
+            <p class="card__kicker">Return</p>
+            <h3 class="card__title">Build another reason to come back</h3>
+            <p class="card__body">Use fitting history and permission-based follow-up to create another reason for customers to return.</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PRIVACY ==================== -->
+  <section class="section section--privacy" id="privacy" aria-labelledby="privacy-title">
+    <div class="shell">
+      <div class="split split--reverse">
+        <div class="split__copy">
+          <p class="eyebrow reveal">Privacy Architecture</p>
+          <h2 class="section__title reveal" id="privacy-title">Customer intelligence without treating customers like inventory.</h2>
+          <ul class="privacy-list reveal" role="list">
+            <li>Customer contact information is stored separately from sensor data.</li>
+            <li>Scan records use protected customer identifiers.</li>
+            <li>Sensitive information is never exposed unnecessarily in exported fitting datasets.</li>
+            <li>Customers control SMS participation.</li>
+            <li><strong>Stride Guide does not sell customer information.</strong></li>
+          </ul>
+        </div>
+        <div class="split__viz reveal">
+          <figure class="shield">
+            <svg viewBox="0 0 260 300" role="img" aria-label="A shield containing a plantar pressure footprint with a lock, representing scan data separated from customer identity.">
+              <path d="M130 18l88 34v82c0 62-38 108-88 130-50-22-88-68-88-130V52l88-34Z" fill="#0E120F" stroke="#242D27" stroke-width="1.5"/>
+              <path d="M130 18l88 34v82c0 62-38 108-88 130-50-22-88-68-88-130V52l88-34Z" fill="url(#sensorGrid)"/>
+              <g transform="translate(92 44) scale(0.62)" opacity=".92">
+                <use href="#footShape" class="foot-line"/>
+                <g clip-path="url(#clipFoot)" filter="url(#pressureRamp)"><use href="#heatRightBase"/></g>
+              </g>
+              <g class="shield__lock">
+                <rect x="110" y="214" width="40" height="30" rx="6" fill="#0B0F0C" stroke="#39FF14" stroke-width="1.6"/>
+                <path d="M119 214v-7a11 11 0 0 1 22 0v7" fill="none" stroke="#39FF14" stroke-width="1.6"/>
+                <circle cx="130" cy="228" r="3.2" fill="#39FF14"/>
+              </g>
+              <g class="shield__ticks" fill="#9AA59D" font-size="7.5" text-anchor="middle">
+                <text x="130" y="262">SCAN RECORD ≠ CUSTOMER IDENTITY</text>
+              </g>
+            </svg>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== HARDWARE ==================== -->
+  <section class="section section--hardware" id="technology" aria-labelledby="hw-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow reveal">Hardware</p>
+        <h2 class="section__title reveal" id="hw-title">Simple hardware. <span class="accent">Serious intelligence.</span></h2>
+      </header>
+
+      <div class="hw">
+        <figure class="hw__viz reveal">
+          <svg viewBox="0 0 420 420" role="img" aria-labelledby="hw-svg-title">
+            <title id="hw-svg-title">Exploded view of the Stride Guide platform: top surface, pressure-sensing matrix, load measurement system, Stride Guide electronics and structural platform.</title>
+            <g class="hw__layer" data-layer="1">
+              <path d="M30 92 200 20l190 72-190 72z" fill="#1B211D" stroke="#39FF14" stroke-opacity=".45"/>
+              <path d="M30 92v10l170 72V164z" fill="#111713" stroke="#242D27"/>
+              <path d="M390 92v10l-190 72v-10z" fill="#0E120F" stroke="#242D27"/>
+            </g>
+            <g class="hw__layer" data-layer="2">
+              <path d="M30 172 200 100l190 72-190 72z" fill="#101613" stroke="#39FF14" stroke-opacity=".8"/>
+              <g stroke="#39FF14" stroke-opacity=".35" stroke-width=".8" fill="none">
+                <path d="M72 162 262 90M114 178 304 106M156 194 346 122"/>
+                <path d="M88 116 278 188M130 100 320 172M172 84 362 156"/>
+              </g>
+              <path d="M30 172v8l170 72v-8z" fill="#0C110E" stroke="#242D27"/>
+              <path d="M390 172v8l-190 72v-8z" fill="#0A0E0B" stroke="#242D27"/>
+            </g>
+            <g class="hw__layer" data-layer="3">
+              <path d="M30 250 200 178l190 72-190 72z" fill="#151B17" stroke="#24C95A" stroke-opacity=".5"/>
+              <g fill="#0B0F0C" stroke="#24C95A" stroke-opacity=".7">
+                <ellipse cx="112" cy="222" rx="12" ry="6"/><ellipse cx="288" cy="222" rx="12" ry="6"/>
+                <ellipse cx="112" cy="278" rx="12" ry="6"/><ellipse cx="288" cy="278" rx="12" ry="6"/>
+              </g>
+              <path d="M30 250v9l170 72v-9z" fill="#0C110E" stroke="#242D27"/>
+              <path d="M390 250v9l-190 72v-9z" fill="#0A0E0B" stroke="#242D27"/>
+            </g>
+            <g class="hw__layer" data-layer="4">
+              <path d="M30 322 200 250l190 72-190 72z" fill="#101613" stroke="#242D27"/>
+              <g stroke="#24C95A" stroke-opacity=".55" stroke-width="1" fill="none">
+                <path d="M150 300h40l18 8h44"/><path d="M120 316h34l16-8h40"/>
+                <rect x="196" y="286" width="26" height="14" rx="2" fill="#0B0F0C" stroke="#39FF14" stroke-opacity=".8"/>
+              </g>
+              <path d="M30 322v9l170 72v-9z" fill="#0C110E" stroke="#242D27"/>
+              <path d="M390 322v9l-190 72v-9z" fill="#0A0E0B" stroke="#242D27"/>
+            </g>
+            <g class="hw__layer" data-layer="5">
+              <path d="M30 386 200 314l190 72-190 72z" fill="#0E120F" stroke="#242D27"/>
+              <path d="M30 386v12l170 72v-12z" fill="#0A0E0B" stroke="#242D27"/>
+              <path d="M390 386v12l-190 72v-12z" fill="#080B09" stroke="#242D27"/>
+            </g>
+          </svg>
+        </figure>
+
+        <div class="hw__copy">
+          <ol class="hw__list reveal" role="list">
+            <li><span class="hw__idx">01</span><span class="hw__name">Top Surface</span></li>
+            <li><span class="hw__idx">02</span><span class="hw__name">Pressure-Sensing Matrix</span></li>
+            <li><span class="hw__idx">03</span><span class="hw__name">Load Measurement System</span></li>
+            <li><span class="hw__idx">04</span><span class="hw__name">Stride Guide Electronics</span></li>
+            <li><span class="hw__idx">05</span><span class="hw__name">Structural Platform</span></li>
+          </ol>
+          <p class="hw__slogan reveal">Connect. Step. Understand.</p>
+          <p class="hw__body reveal">The platform connects to a dedicated store computer, while secure cloud services handle customer profiles, fitting history, analytics and communication. Your team sees a fitting screen. Everything underneath it—storage, comparison, follow-up—happens on its own.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== EARLY ACCESS ==================== -->
+  <section class="section section--early" id="early-access" aria-labelledby="early-title">
+    <div class="shell">
+      <div class="early">
+        <div class="early__copy">
+          <p class="eyebrow reveal">Early Access</p>
+          <h2 class="section__title reveal" id="early-title">Help build the future of footwear fitting.</h2>
+          <p class="section__lede reveal">Stride Guide is currently preparing its first retail deployments. We’re looking for forward-thinking footwear retailers interested in testing the platform, providing feedback, and helping shape the product around real store operations.</p>
+          <ul class="checklist reveal" role="list">
+            <li>Direct input into the fitting screen your associates will use.</li>
+            <li>Hands-on onboarding with the team building the platform.</li>
+            <li>Pilot pricing for stores that help shape the product.</li>
+          </ul>
+          <p class="early__micro reveal">Limited pilot availability.</p>
+        </div>
+
+        <div class="early__form reveal">
+          <form id="pilot-form" class="form" novalidate>
+            <h3 class="form__title">Apply for an Early Store Pilot</h3>
+            <div class="field">
+              <label for="store">Store name</label>
+              <input id="store" name="store" type="text" autocomplete="organization" required>
+            </div>
+            <div class="field">
+              <label for="name">Your name</label>
+              <input id="name" name="name" type="text" autocomplete="name" required>
+            </div>
+            <div class="field">
+              <label for="email">Work email</label>
+              <input id="email" name="email" type="email" autocomplete="email" required>
+            </div>
+            <div class="field">
+              <label for="type">Store type</label>
+              <select id="type" name="type">
+                <option>Running / specialty</option>
+                <option>Comfort footwear</option>
+                <option>Work boots</option>
+                <option>Independent shoe store</option>
+                <option>Multi-location retailer</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="notes">Anything we should know? <span class="field__opt">Optional</span></label>
+              <textarea id="notes" name="notes" rows="3"></textarea>
+            </div>
+            <button class="btn btn--primary btn--lg btn--block" type="submit">Apply for an Early Store Pilot</button>
+            <p class="form__status" id="form-status" role="status" aria-live="polite"></p>
+            <p class="form__fine">We’ll only use these details to talk with you about a pilot.</p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FINAL CTA ==================== -->
+  <section class="finale" aria-labelledby="finale-title">
+    <div class="shell finale__inner">
+      <h2 class="finale__title" id="finale-title">
+        <span class="finale__line reveal">Your customers already leave footprints.</span>
+        <span class="finale__big reveal">Start remembering them.</span>
+      </h2>
+      <a class="btn btn--primary btn--xl reveal" href="#early-access">Bring Stride Guide to My Store</a>
+      <p class="finale__tag reveal">Stride Guide™ — Turn every step into a sale.™</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="shell site-footer__inner">
+    <div class="site-footer__brand">
+      <a class="logo" href="#top" aria-label="Stride Guide home">
+        <svg class="logo__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <rect x="1" y="1" width="30" height="30" rx="8" fill="#111713" stroke="#2B3630"/>
+          <path d="M9 22.5c3.4 0 5-2.2 5.6-4.6.7-2.7 2.3-4.4 5.4-4.4" stroke="#39FF14" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M12 9.5h8" stroke="#24C95A" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <circle cx="23.5" cy="22.5" r="1.8" fill="#39FF14"/>
+        </svg>
+        <span class="logo__type">STRIDE GUIDE<span class="tm">™</span></span>
+      </a>
+      <p class="site-footer__tag">Turn every step into a sale.™</p>
+    </div>
+    <nav class="site-footer__nav" aria-label="Footer">
+      <ul role="list">
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#foot-history">Foot History</a></li>
+        <li><a href="#for-retailers">For Retailers</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="#technology">Technology</a></li>
+        <li><a href="#early-access">Early Access</a></li>
+      </ul>
+    </nav>
+    <p class="site-footer__legal">
+      Stride Guide™ and Foot History™ are trademarks of Stride Guide. Stride Guide is a retail fitting tool. It does not diagnose, treat or provide medical advice.
+      <span>© <span id="year">2026</span> Stride Guide. All rights reserved.</span>
+    </p>
+  </div>
+</footer>
+
+<div class="mobile-cta" id="mobile-cta" hidden>
+  <p class="mobile-cta__text">Pilot spots are limited</p>
+  <a class="btn btn--primary btn--sm" href="#early-access">Request a Pilot</a>
+</div>
+
+<script src="/assets/js/main.js" defer></script>
+</body>
+</html>
