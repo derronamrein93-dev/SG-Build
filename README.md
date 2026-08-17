@@ -1,4 +1,15 @@
-# Stride Guide™ — Landing Page
+# Stride Guide™
+
+This repo holds two things:
+
+| | |
+| --- | --- |
+| **[Product blueprint](docs/README.md)** | PRD, UX spec, recommendation engine, data model and build plan for **Stride Guide FitOS** — the store-side fitting interface. Start here. |
+| **Landing page** (this file, below) | The marketing site at the repo root. |
+
+---
+
+## Landing Page
 
 Conversion-focused marketing site for Stride Guide, a retail footwear fitting
 platform that turns in-store pressure mapping into customer fitting
