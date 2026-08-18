@@ -277,7 +277,23 @@ Not a pricing exercise, but the build should not contradict a plan:
   leased as an upgrade that unlocks scan capture inside the same FitOS workflow.
 - The pitch to the store is one sentence: *"Every fitting your team does becomes
   a record you own, a report your customer keeps, and a reason for them to come
-  back."*
+  back."* Note the word **own** — it is doing real work, and the data model backs
+  it up.
+
+### The option worth preserving
+
+Not a v1 feature and not a promise to anyone: the architecture keeps open a
+**portable consumer Fit ID**. A customer eventually walks into any participating
+retailer, says "I have a MyStrideID," and the retailer receives whatever
+foot characteristics, sizing history and preferences that customer has
+authorized — and none of the previous retailer's purchase data, notes, pricing or
+conversion records, which are not the customer's to share.
+
+That is a stronger position than either extreme ("every store owns everything" or
+"Stride Guide owns one universal customer record"), and it could end up more
+valuable than the pressure platform. It costs one nullable column today
+([09 §3b](09-build-plan.md#3b-standing-architectural-instruction--customer-identity)),
+which is why it is being preserved rather than pursued.
 
 ---
 

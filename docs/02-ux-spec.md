@@ -153,7 +153,7 @@ reason to glance at it. Deliberately **not** an analytics product.
 | Element | Behavior |
 | --- | --- |
 | **New Fitting** | Largest target on screen (min 240×120px). One tap → Screen 2 with the phone field focused. |
-| **Search customer** | Type-ahead on **name** after 2 characters. **Phone requires the complete number** — lookup runs against a keyed hash, so partial matching is impossible by design ([05 §6](05-data-model.md#6-phone-identity--why-hashed-and-what-it-costs)). Tapping a result opens the customer profile, not a new fitting. |
+| **Search customer** | Type-ahead on **name** after 2 characters. **Phone requires the complete number** — lookup runs against a keyed hash, so partial matching is impossible by design ([05 §6](05-data-model.md#10-contact-identity--keyed-hashes-scoped-per-organization)). Tapping a result opens the customer profile, not a new fitting. |
 | **Recent fittings** | Last 8 today. Tap = open that fitting (resume if incomplete, view if complete). An incomplete fitting shows a subtle "in progress" marker — this is how a dropped fitting gets recovered. |
 | **Today stats** | Exactly three: fittings, reports sent, follow-ups due. No charts, no trends, no comparisons in v1. |
 | **Follow-ups due** | Max 5 shown, each with a one-tap Done and a swipe to snooze. Overdue items sort first. |
@@ -205,7 +205,7 @@ be stuck; this converts a dead end into a printed report and a data point.
 
 A single `consent = true` flag cannot answer "what did they agree to, when,
 where, under which policy version, and who took it." Each type is captured and
-stored separately ([05 §7](05-data-model.md#7-consent_record)), with policy
+stored separately ([05 §7](05-data-model.md#11-consent_record)), with policy
 version, capture method, location, timestamp and capturing user.
 
 | Type | Asked | Required to proceed |
@@ -426,7 +426,7 @@ answers *"What do we know about this customer?"* and the one that converts P2.
 - **Timeline** of fittings: date, purpose, recommendation, what they bought,
   outcome, follow-up status.
 - **What changed** between the two most recent fittings, read from the stored
-  `assessment_delta` record ([05 §14](05-data-model.md#14-assessment_delta--what-changed-since-last-visit))
+  `assessment_delta` record ([05 §14](05-data-model.md#19-assessment_delta--what-changed-since-last-visit))
   — structured data computed once at completion, not a visual diff recalculated
   at render time. Shown in plain language (*"Right foot now measured a half size
   larger · Now reports heel discomfort"*), and queryable later for cohort

@@ -85,40 +85,59 @@ part of this diagram, and the mapping table below says which.
 | Box | Implemented by | Spec |
 | --- | --- | --- |
 | Organization · Location | `organization`, `location` | [05 §1–§3](05-data-model.md#1-tenancy-organization--location) |
-| Associate | `user` (+ `user_location`) | [05 §4](05-data-model.md#4-user-staff) |
-| Customer | `customer`, `consent_record` | [05 §5–§7](05-data-model.md#5-customer) |
-| Fitting Session | `fitting_session` | [05 §8](05-data-model.md#8-fitting_session) |
-| Manual Observations | `assessment` | [05 §9](05-data-model.md#9-assessment--human-observations) |
-| Sensor Scan → Raw Capture | `scan` (immutable) | [05 §11](05-data-model.md#11-scan--raw-capture-hardware-immutable) |
-| Derivation Engine | `scan_derivation` (versioned, re-runnable) | [05 §12](05-data-model.md#12-scan_derivation--reprocessable-interpretation) |
-| **Canonical Fit Features** | `fitting_feature` + `feature_schema_version` | [05 §10](05-data-model.md#10-the-canonical-fit-feature-model-replaces-the-assessment-schema-is-the-sensor-schema) |
+| Associate | `user` (+ `user_location`) | [05 §4](05-data-model.md#5-user-staff) |
+| Customer | `organization_customer` + `location_customer_access` + `consent_record`, optionally linked to `person_identity` | [05 §6–§11](05-data-model.md#6-person_identity--global-optional-deliberately-almost-empty) |
+| Fitting Session | `fitting_session` | [05 §8](05-data-model.md#13-fitting_session) |
+| Manual Observations | `assessment` | [05 §9](05-data-model.md#14-assessment--human-observations) |
+| Sensor Scan → Raw Capture | `scan` (immutable) | [05 §11](05-data-model.md#16-scan--raw-capture-hardware-immutable) |
+| Derivation Engine | `scan_derivation` (versioned, re-runnable) | [05 §12](05-data-model.md#17-scan_derivation--reprocessable-interpretation) |
+| **Canonical Fit Features** | `fitting_feature` + `feature_schema_version` | [05 §10](05-data-model.md#15-the-canonical-fit-feature-model) |
 | Recommendation Engine | Rule evaluator, deterministic | [03 §1](03-recommendation-engine.md#the-recommendation-contract) |
 | Product Needs | `product_requirements` — stage 3 of the contract | [03 §1](03-recommendation-engine.md#the-recommendation-contract) |
-| Catalog / Inventory | `product_model` → `product_variant` → `location_inventory` | [05 §15](05-data-model.md#15-catalog-three-layers) |
-| Ranked Recommendations | `recommendation` (immutable, five version stamps) | [05 §13](05-data-model.md#13-recommendation) |
-| Fit Report | `report`, `report_view` | [04](04-fit-report.md) · [05 §17](05-data-model.md#17-report-and-report_view) |
-| Outcome | `outcome` | [05 §16](05-data-model.md#16-outcome) |
-| Future Visit | `follow_up` → next `fitting_session` | [05 §18](05-data-model.md#18-follow_up) |
-| Longitudinal Fit History | `assessment_delta` | [05 §14](05-data-model.md#14-assessment_delta--what-changed-since-last-visit) |
+| Catalog / Inventory | `product_model` → `product_variant` → `location_inventory` | [05 §15](05-data-model.md#20-catalog-three-layers) |
+| Ranked Recommendations | `recommendation` (immutable, five version stamps) | [05 §13](05-data-model.md#18-recommendation) |
+| Fit Report | `report`, `report_view` | [04](04-fit-report.md) · [05 §17](05-data-model.md#22-report-and-report_view) |
+| Outcome | `outcome` | [05 §16](05-data-model.md#21-outcome) |
+| Future Visit | `follow_up` → next `fitting_session` | [05 §18](05-data-model.md#23-follow_up) |
+| Longitudinal Fit History | `assessment_delta` | [05 §14](05-data-model.md#19-assessment_delta--what-changed-since-last-visit) |
 
 **The waist of the diagram is the whole architecture.** Manual observations and
 sensor derivation converge on Canonical Fit Features, and everything below that
 line is written once and never rewritten when hardware arrives. Everything above
 it can change source without disturbing anything below.
 
-### The map is the schema
+### How the map maps to the schema
 
-Both places where the schema previously differed from this drawing have been
-changed to match it:
+The drawing is the fitting architecture. One layer sits above it and one
+mechanism sits beside it:
 
-- **Customer is owned by a Location.** `organization_id` rides along for RLS and
-  rollups, and `organization.customer_visibility` now defaults to `location` —
-  chain-wide recognition is opt-in rather than assumed.
-- **Associate is owned by a Location.** `user_location` remains only as an
-  exception for staff who genuinely cover two doors; it grants access without
-  changing ownership.
+- **Above:** an optional, global `person_identity` that a retailer's customer
+  record may *later* be linked to. Null by default, forever, unless a person
+  opts into MyStrideID. Day 1 runs entirely without it.
+- **Customer** on the map is `organization_customer` — the **retailer
+  relationship**, owned by the organization, numbered per retailer
+  ("Customer #472").
+- **Beside:** location scoping is an *authorization* grant
+  (`location_customer_access`), not an ownership column. Grantable, revocable,
+  auditable, per-location — everything a foreign key is not. Default grant is the
+  creating location only.
+- **Associate** is `user`, owned by a location, with a join table for staff who
+  genuinely cover two doors.
 
-Details in [05 §1](05-data-model.md#1-tenancy-organization--location).
+```
+   person_identity   (global, optional, nearly empty — no contact data)
+         │
+         │  identity_resolution: unlinked → candidate_match → verified → linked → revoked
+         │
+   organization_customer ──► location_customer_access ──► location
+         │
+         └──► fitting_session ──► … the rest of the map
+```
+
+**Identity, consent and authorization are three independent controls and never
+collapse into one flag.** Knowing two records are the same person authorizes
+nothing on its own. Details in
+[05 §2](05-data-model.md#2-identity-consent-authorization--three-independent-controls).
 
 ## The load-bearing decisions
 
@@ -128,7 +147,7 @@ Details in [05 §1](05-data-model.md#1-tenancy-organization--location).
 2. **Manual assessment and sensor derivation are two sources feeding one
    canonical feature model.** Not "the assessment schema is the sensor schema" —
    that phrasing would have crippled the platform.
-   [05 §10](05-data-model.md#10-the-canonical-fit-feature-model-replaces-the-assessment-schema-is-the-sensor-schema)
+   [05 §10](05-data-model.md#15-the-canonical-fit-feature-model)
 3. **Rules decide; language models phrase; ML re-ranks later.** Three systems,
    one wall, five version stamps on every recommendation so any fitting is
    reproducible years later.
@@ -138,10 +157,15 @@ Details in [05 §1](05-data-model.md#1-tenancy-organization--location).
    [09 §3](09-build-plan.md#3-platform-topology--wordpress-stays-in-its-lane)
 5. **Phone numbers are keyed hashes, not searchable strings** — with the
    exact-match trade-off stated out loud.
-   [05 §6](05-data-model.md#6-phone-identity--why-hashed-and-what-it-costs)
-6. **Name: Stride Guide FitOS**, with Lite/Pro reserved as pricing tiers.
+   [05 §6](05-data-model.md#10-contact-identity--keyed-hashes-scoped-per-organization)
+6. **Customer data is a retailer-scoped relationship, optionally linked to a
+   separate global identity.** `person_identity_id` is nullable so MyStrideID can
+   arrive later with zero migration, and identity resolution never implies
+   cross-retailer visibility.
+   [05 §6–§9](05-data-model.md#6-person_identity--global-optional-deliberately-almost-empty)
+7. **Name: Stride Guide FitOS**, with Lite/Pro reserved as pricing tiers.
    [01 §3](01-prd.md#3-product-name)
-7. **The brand pivots to light** — warm neutral plus deep teal; saturated color
+8. **The brand pivots to light** — warm neutral plus deep teal; saturated color
    survives only as sensor-data visualization.
    [08](08-design-language.md)
 

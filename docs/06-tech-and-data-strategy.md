@@ -100,7 +100,7 @@ proprietary data on purpose.
 And the deeper asset is not specs at all. Any competitor can eventually assemble
 a spec table. What no one else will have is **which recommendations led to which
 outcomes for which foot profiles.** That is `outcome`
-([05 §16](05-data-model.md#16-outcome)), and it accrues from day one at zero
+([05 §16](05-data-model.md#21-outcome)), and it accrues from day one at zero
 marginal cost.
 
 ### Three layers, never one table

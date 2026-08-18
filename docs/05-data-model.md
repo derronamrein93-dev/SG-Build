@@ -4,11 +4,12 @@ Postgres (Supabase). Every table gets `id uuid pk default gen_random_uuid()`,
 `created_at timestamptz default now()`, `updated_at timestamptz`. Those three are
 omitted from the tables below.
 
-> **Revision 2.** Tenancy moved from `store` to `organization → location`;
-> phone identity moved to keyed-hash lookup; provenance made first-class;
-> the canonical fit feature model separated from the manual assessment; catalog
-> split three ways; device and report entities added. See
-> [00-revision-log](00-revision-log.md).
+> **Revision 3.** Customer data restructured as **retailer-scoped relationships
+> optionally linked to a separate global `person_identity`**. Identity matching,
+> consumer consent and retailer authorization are now three independent
+> mechanisms that never collapse into one flag. `person_identity_id` is nullable,
+> so MyStrideID can arrive later without migrating a single existing record.
+> See [00-revision-log](00-revision-log.md).
 
 ---
 
@@ -18,11 +19,10 @@ This document is the storage layer for the canonical
 [system map](README.md#system-map). Read the map first — it is the shape; this is
 the shape written down in tables.
 
-The single most important line on that map is the one where **Manual
-Observations** and **Derivation Engine** converge on **Canonical Fit Features**.
-Everything below that convergence (§10 onward) is written once and survives the
-hardware; everything above it can change source without disturbing anything
-below.
+The single most important line on that map is where **Manual Observations** and
+**Derivation Engine** converge on **Canonical Fit Features**. Everything below
+that convergence is written once and survives the hardware; everything above it
+can change source without disturbing anything below.
 
 ---
 
@@ -30,63 +30,90 @@ below.
 
 **The UI says "store." The database never does.** Every future customer shape —
 independent shop, multi-location chain, franchise, running clinic, orthotics
-shop, enterprise retailer, mobile fitting event, pop-up — is an
-`organization` with one or more `location` records. A single-store retailer is
-simply an organization with one location, and the UI hides the distinction
-entirely.
-
-This is the cheapest decision in the document today and one of the most
-expensive to retrofit later.
+shop, enterprise retailer, mobile fitting event, pop-up — is an `organization`
+with one or more `location` records. A single-store retailer is an organization
+with one location, and the UI hides the distinction entirely.
 
 ```
-  organization ──┬── location ──┬── user (staff)
-                 │              ├── device_installation ──► device
-                 │              ├── location_inventory ──► product_variant ──► product_model
-                 │              │
-                 │              └── customer ── consent_record
-                 │                      │
-                 │                      └──► fitting_session ──┬── assessment    (1:1, manual)
-                 │                             ├── scan                  (1:n, hardware, immutable)
-                 │                             │     └── scan_derivation (1:n, re-runnable)
-                 │                             ├── fitting_feature       (1:n, canonical + provenance)
-                 │                             ├── recommendation        (1:n, immutable versions)
-                 │                             ├── outcome               (1:1, optional)
-                 │                             ├── report                (1:n) ── report_view (1:n)
-                 │                             ├── assessment_delta      (1:1, vs prior session)
-                 │                             └── follow_up             (1:n)
-                 │
-                 └── pilot_feedback
+  person_identity (global, optional, nearly empty)
+        │
+        │  identity_resolution   ← deliberate, stateful, revocable
+        │
+  ┌─────┴──────────────────────────┬──────────────────────────────┐
+  │                                │                              │
+  organization A                   organization B                 …
+  │                                │
+  ├── location ──┬── user (staff)
+  │              ├── device_installation ──► device
+  │              └── location_inventory ──► product_variant ──► product_model
+  │
+  ├── organization_customer ──┬── location_customer_access ──► location
+  │            │              └── consent_record
+  │            │
+  │            └──► fitting_session ──┬── assessment          (1:1, manual)
+  │                                   ├── scan                (1:n, immutable)
+  │                                   │     └── scan_derivation (1:n, re-runnable)
+  │                                   ├── fitting_feature     (1:n, canonical)
+  │                                   ├── recommendation      (1:n, immutable)
+  │                                   ├── outcome             (1:1, optional)
+  │                                   ├── report ── report_view
+  │                                   ├── assessment_delta    (1:1)
+  │                                   └── follow_up           (1:n)
+  │
+  └── pilot_feedback
 ```
 
-**Customer and staff are owned by a location**, per the approved
-[system map](README.md#system-map). `organization_id` is carried on both as a
-denormalized column — it drives RLS and org-level rollups, and it is what makes
-sharing *possible* — but the owning row is the location.
+**The customer record belongs to the retailer relationship, not to a location
+and not to Stride Guide.** Location scoping is an *authorization* concern handled
+by `location_customer_access` (§9), which is a stronger mechanism than ownership:
+it is grantable, revocable, auditable, and per-location, where a foreign key is
+none of those things.
 
-Chain-wide recognition is therefore **opt-in, not the default**:
-`organization.customer_visibility` defaults to `location`, and a chain that wants
-a customer fitted at one door recognized at another sets it to `organization`.
-That ordering is the safer one — a retailer who has not thought about
-cross-location customer data does not accidentally get it, and a customer's
-expectation ("I gave this to *this* shop") is the default behavior. Open
-question 11 in [09 §7](09-build-plan.md#7-open-questions) is now a question about
-when to opt in, not about what the schema does.
+> This supersedes revision 2, which put `customer.location_id` as the owning
+> column. Same isolation guarantee, better mechanism — and it is what makes
+> optional cross-retailer identity possible without any of it leaking.
 
 ---
 
-## 2. `organization`
+## 2. Identity, consent, authorization — three independent controls
+
+The load-bearing principle of this document.
+
+| Control | Question | Mechanism |
+| --- | --- | --- |
+| **IDENTITY** | Is this the same person? | `person_identity` + `identity_resolution` |
+| **CONSENT** | Has the person authorized this use? | `consent_record`, scoped to an organization **or** to the person |
+| **AUTHORIZATION** | Is this retailer or location allowed to access this? | `location_customer_access`, organization policy, RLS |
+
+**These never collapse into one boolean.** Stride Guide may internally know that
+the same person visited Retailer A and Retailer B while Retailer B has no right
+whatsoever to see Retailer A's fitting records — and that state must be
+representable, not an awkward edge case.
+
+Concretely, the system must be able to hold all three of these at once:
+
+- identity = **verified** (we know it is the same person)
+- consent = **granted for portable fit data only**
+- authorization = **denied** for Retailer A's transactional records
+
+Matching identity and authorizing data sharing are different acts, performed by
+different parties, at different times, and revocable independently.
+
+---
+
+## 3. `organization`
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
-| name | text | ✅ | |
-| legal_name | text | | |
+| name / legal_name | text | ✅ / | |
 | org_type | enum | ✅ | `independent` · `chain` · `franchise` · `clinic` · `orthotics` · `enterprise` · `events` |
 | plan | enum | ✅ | `pilot` · `design_partner` · `active` · `paused` |
-| customer_visibility | enum | ✅ | `location` (**default**) · `organization` — whether a customer's fit history is visible at sibling locations. Opt-in, not opt-out |
-| data_owner_terms_version | text | ✅ | Which data-rights agreement this org signed (see open question 10) |
+| default_customer_access | enum | ✅ | `creating_location` (**default**) · `all_locations` — what access grant a new customer gets. Chain-wide recognition is opt-in |
+| identity_participation | enum | ✅ | `none` (**default**) · `resolution_only` · `portable_profile` — whether this retailer participates in MyStrideID identity resolution at all, and how far |
+| data_owner_terms_version | text | ✅ | Which data-rights agreement this org signed (open question 10) |
 | settings | jsonb | | Org-wide defaults |
 
-## 3. `location`
+## 4. `location`
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
@@ -97,160 +124,254 @@ when to opt in, not about what the schema does.
 | logo_url | text | | Falls back to org logo, then a wordmark |
 | timezone | text | ✅ | Drives follow-up due dates |
 | size_unit | enum | ✅ | `us` · `uk` · `eu` |
-| retail_focus | enum[] | ✅ | `running` · `comfort` · `work` · `orthopedic` · `sporting_goods` — biases default categories |
-| pos_system | text | | **Captured in Phase 0.** Free text until integrations exist |
-| inventory_source | enum | | `none` · `csv` · `pos_export` · `api` — captured in Phase 0 |
-| tracks_associate_attribution | bool | | Captured in Phase 0; affects reporting expectations |
-| network_quality | enum | | `good` · `variable` · `poor` — captured in Phase 0; drives offline hardening priority |
+| retail_focus | enum[] | ✅ | `running` · `comfort` · `work` · `orthopedic` · `sporting_goods` |
+| pos_system | text | | **Phase 0 capture** |
+| inventory_source | enum | | `none` · `csv` · `pos_export` · `api` — Phase 0 capture |
+| tracks_associate_attribution | bool | | Phase 0 capture |
+| network_quality | enum | | `good` · `variable` · `poor` — Phase 0 capture |
 | active | bool | ✅ | |
 
-## 4. `user` (staff)
-
-Renamed from `associate` — managers, owners and, later, support staff are the
-same entity with a different role.
+## 5. `user` (staff)
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
-| **location_id** | uuid fk | ✅ | **Owning location** — staff belong to a door |
-| organization_id | uuid fk | ✅ | Denormalized for RLS and org rollups |
+| location_id | uuid fk | ✅ | Home location |
+| organization_id | uuid fk | ✅ | Denormalized for RLS and rollups |
 | first_name | text | ✅ | Printed on report ("Fitted by Denise") |
 | last_name | text | | |
 | role | enum | ✅ | `associate` · `manager` · `owner` · `org_admin` |
-| pin_hash | text | | Argon2id. Optional per location |
-| auth_user_id | uuid | | Null for floor staff on a shared tablet; set for real logins |
+| pin_hash | text | | Argon2id |
+| auth_user_id | uuid | | Null for floor staff on a shared tablet |
 | active | bool | ✅ | Deactivate, never delete — attribution must survive |
 
-`user_location` (join table) remains for the **exception**: someone who genuinely
-covers two doors. It grants additional locations; it does not change ownership.
-Without it, a shared employee needs duplicate records and their attribution
-splits in two — which is why the exception exists even though the default is
-location-owned.
+`user_location` (join) covers staff who genuinely work two doors: it grants
+additional locations without changing the home location.
 
-## 5. `customer`
+---
 
-Identity only. Fit data lives on `fitting_session` and its children.
+## 6. `person_identity` — global, optional, deliberately almost empty
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
-| **location_id** | uuid fk | ✅ | **Owning location** — where the customer was created |
-| organization_id | uuid fk | ✅ | Denormalized for RLS and org rollups; enables opt-in sharing |
-| first_name / last_name | text | ✅* | |
-| **phone_lookup_hash** | bytea | | **HMAC-SHA256(server_key, E.164).** The only indexed phone representation. See §6 |
-| **phone_encrypted** | bytea | | Reversible, envelope-encrypted. Written **only** when consent to contact exists |
-| phone_last4 | text | | Display/disambiguation only ("•••-1212") |
-| phone_key_version | smallint | | Which HMAC key version produced the hash — makes rotation possible |
-| email_lookup_hash | bytea | | Same treatment |
-| email_encrypted | bytea | | |
+| identity_lookup_hash | bytea | ✅ | HMAC over a normalized identifier, **under a separate global key** (§10) |
+| identity_key_version | smallint | ✅ | Rotation |
+| account_status | enum | ✅ | `shadow` (created by resolution, no account) · `claimed` (MyStrideID account exists) · `closed` |
+| auth_user_id | uuid | | Set only when the person actually creates a MyStrideID account |
+| created_at | timestamptz | ✅ | |
+
+**What is deliberately not here:** name, phone, email, address, fit data,
+purchase history. `person_identity` is a *pointer*, not a profile. A global table
+holding contact details for every customer of every retailer would be the most
+attractive breach target in the company; this one is close to worthless on its
+own, and that is the design.
+
+Names and contact details stay on `organization_customer`, encrypted, under the
+retailer relationship where the customer actually gave them.
+
+## 7. `organization_customer` — the retailer relationship
+
+This is what an associate means by "customer." Replaces the previous `customer`
+table.
+
+| Field | Type | Req | Notes |
+| --- | --- | --- | --- |
+| organization_id | uuid fk | ✅ | The owning retailer relationship |
+| created_at_location_id | uuid fk | ✅ | Where the relationship started |
+| **person_identity_id** | uuid fk | | **Nullable, and null is the normal state.** Set only after deliberate, verified resolution |
+| local_customer_number | int | ✅ | Per-organization human-readable number ("Customer #472"). Sequence per org |
+| first_name / last_name | text | ✅* | Encrypted at rest |
+| phone_lookup_hash | bytea | | HMAC under the **organization's own key** (§10) |
+| phone_encrypted | bytea | | Only where contact consent exists |
+| phone_last4 | text | | Display only |
+| phone_key_version | smallint | | |
+| email_lookup_hash / email_encrypted | bytea | | Same treatment |
 | age_range | enum | | `under_18` … `75_plus` · `undisclosed` |
 | is_minor | bool | | Switches consent copy, suppresses upsells |
-| notes | text | | Non-fit context |
-| identification_method | enum | ✅ | `phone` · `name_dob` · `loyalty_id` · `anonymous` — see open question 9 |
+| identification_method | enum | ✅ | `phone` · `name_dob` · `loyalty_id` · `anonymous` |
 | anonymous | bool | ✅ | Fitting without stored identity |
+| notes | text | | Retailer's own non-fit context |
 | deleted_at | timestamptz | | Soft delete; identity scrubbed, fit records anonymized |
 
 \* Not required when `anonymous = true`.
 
-**Index:** `unique (location_id, phone_lookup_hash) where phone_lookup_hash is not null and deleted_at is null`
+**Index:** `unique (organization_id, phone_lookup_hash) where phone_lookup_hash is not null and deleted_at is null`
 
-Dedupe is scoped to the owning location, matching ownership. When
-`customer_visibility = 'organization'`, lookup widens to the organization and a
-match at a sibling location offers the existing record instead of creating a
-second one — the one place the policy field changes behavior an associate can
-see.
+Day 1 runs entirely on this table with `person_identity_id` null throughout:
 
-## 6. Phone identity — why hashed, and what it costs
+```
+  Organization A
+    → organization_customer #472
+      → fitting_session, assessment, recommendation, report
+```
 
-A phone number is the dedupe key and also the most sensitive identifier in the
-system. Storing it in plaintext makes every backup, export and analytics sink a
-liability.
+No global identity required, none implied, nothing to migrate later.
+
+## 8. `identity_resolution` — a stateful layer, not a link table
+
+Calling this a link table would invite exactly the wrong implementation: an
+automatic join on matching hashes. **Two identical hashed phone numbers must
+never cause two retailers to start sharing a customer's history.**
+
+| Field | Type | Req | Notes |
+| --- | --- | --- | --- |
+| organization_customer_id | uuid fk | ✅ | |
+| person_identity_id | uuid fk | ✅ | |
+| state | enum | ✅ | `candidate_match` · `verified` · `linked` · `revoked` (absence of a row = `unlinked`) |
+| evidence | jsonb | ✅ | What suggested the match — never the raw identifier itself |
+| proposed_by | enum | ✅ | `system` · `customer` · `retailer` · `support` |
+| verified_by | enum | | `customer_confirmation` · `account_claim` · `support_review` |
+| verified_at | timestamptz | | |
+| revoked_at / revoked_reason | timestamptz / text | | Revocation is first-class, not a delete |
+| state_history | jsonb | ✅ | Append-only transition log |
+
+### The state machine
+
+| State | Meaning | What it permits |
+| --- | --- | --- |
+| `unlinked` | No relationship asserted. **The default forever.** | Nothing |
+| `candidate_match` | The system suspects a match. | **Nothing.** Not visible to any retailer. Not actionable. It is a queue item, not a fact. |
+| `verified` | The person confirmed it, or claimed a MyStrideID account. | Sets `organization_customer.person_identity_id` |
+| `linked` | Verified **and** the person has authorized a specific use. | Whatever that consent covers, and nothing else |
+| `revoked` | The person withdrew. | Nothing; history retained for audit |
+
+**`verified` still authorizes no data flow.** It answers only "same person."
+Every actual disclosure requires a separate consent record *and* a separate
+authorization check. Those are §2's three controls, kept apart on purpose.
+
+## 9. `location_customer_access` — authorization
+
+| Field | Type | Req | Notes |
+| --- | --- | --- | --- |
+| organization_customer_id | uuid fk | ✅ | |
+| location_id | uuid fk | ✅ | |
+| access_level | enum | ✅ | `full` · `fit_profile_only` · `none` |
+| granted_by_user_id | uuid fk | | Null when granted by org policy at creation |
+| granted_at / revoked_at | timestamptz | ✅ / | |
+| reason | text | | |
+
+On creation, one row for the creating location, per
+`organization.default_customer_access`. A chain enabling cross-door recognition
+grants additional rows — an explicit, auditable act rather than a schema
+property. RLS reads this table; there is no path around it.
+
+---
+
+## 10. Contact identity — keyed hashes, scoped per organization
 
 ```
   502-555-1212
       ↓ normalize
-  +15025551212                          → phone_last4 = "1212"  (display only)
-      ↓ HMAC-SHA256 with server-side key
-  phone_lookup_hash                     → indexed, exact-match lookup
-      ↓ envelope encryption (only if contact consent)
-  phone_encrypted                       → decrypt only to send a report
+  +15025551212                                   → phone_last4 "1212" (display)
+      ↓ HMAC with the ORGANIZATION's key
+  organization_customer.phone_lookup_hash        → dedupe within this retailer
+      ↓ envelope encryption (only with contact consent)
+  phone_encrypted                                → decrypt only to send a report
 ```
 
-- **HMAC, not bare SHA-256.** The North American phone space is ~10^10 — a plain
-  hash is a weekend of brute force. The keyed construction makes the rainbow
-  table useless without the key.
-- **The key lives outside the database** (Supabase Vault / KMS env secret), so a
-  database dump alone cannot reverse or enumerate the identifiers.
-- **`phone_key_version` enables rotation.** Rotating means re-deriving hashes
-  from `phone_encrypted`; rows without contact consent cannot be re-derived and
-  are re-keyed at next visit. Accept this cost knowingly.
+- **HMAC, not bare SHA-256.** The North American phone space is ~10^10; a plain
+  hash is a weekend of brute force. A keyed construction makes the rainbow table
+  useless without the key.
+- **Keys live outside the database** (Vault/KMS), so a dump alone reverses
+  nothing.
+- **Per-organization keys** — an addition this revision makes, and a necessary
+  one. With a single global key, two retailers' rows for the same person produce
+  *identical hashes*, which means the platform could silently correlate customers
+  across retailers as a side effect of the schema. That would defeat §2 before
+  anyone wrote a line of resolution logic. Per-org keys make cross-retailer
+  correlation impossible by accident and possible only through the deliberate,
+  consented path in §8.
+- `person_identity.identity_lookup_hash` uses a **separate global key**, used
+  only inside identity resolution and never for retailer-facing lookup.
 
-**The UX consequence, stated plainly:** hashed lookup is **exact-match only**.
-No partial or prefix search on phone. Screen 2 searches the full number, or by
-name, and [02 §5](02-ux-spec.md#5-screen-2--customer-find-or-create) reflects
-that. This is a real trade and it is worth making.
+**UX consequence:** lookup is exact-match only. No partial phone search; the
+associate types the full number or searches by name.
+([02 §5](02-ux-spec.md#5-screen-2--customer-find-or-create))
 
-## 7. `consent_record`
-
-One row per consent event per type. Never a single `consent = true` boolean.
+## 11. `consent_record`
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
-| customer_id | uuid fk | ✅ | |
-| location_id | uuid fk | ✅ | Where consent was taken — jurisdiction matters |
-| type | enum | ✅ | `fit_history_storage` · `receive_report` · `marketing_email` · `marketing_sms` · `privacy_ack` |
+| **scope** | enum | ✅ | `organization` (given to this retailer) · `person` (given to Stride Guide / MyStrideID) |
+| organization_customer_id | uuid fk | | Set when scope = `organization` |
+| person_identity_id | uuid fk | | Set when scope = `person` |
+| location_id | uuid fk | | Where taken — jurisdiction matters |
+| type | enum | ✅ | `fit_history_storage` · `receive_report` · `privacy_ack` · `marketing_email` · `marketing_sms` · `identity_resolution` · `portable_profile_share` |
 | granted | bool | ✅ | Revocation writes a **new row**; rows are never updated |
-| consent_text_version | text | ✅ | Exact wording shown, e.g. `consent-fit-v1.0` |
-| privacy_policy_version | text | ✅ | Policy in force at capture |
-| method | enum | ✅ | `tablet_checkbox` · `verbal_attested` · `web_form` · `written` |
-| captured_by_user_id | uuid fk | ✅ | |
+| scope_detail | jsonb | | For `portable_profile_share`: which retailer, which fields, expiry |
+| consent_text_version / privacy_policy_version | text | ✅ | |
+| method | enum | ✅ | `tablet_checkbox` · `verbal_attested` · `web_form` · `written` · `mystrideid_account` |
+| captured_by_user_id | uuid fk | | Null for consents given by the person online |
 | captured_at | timestamptz | ✅ | |
-| device_id | text | | Which tablet |
 
-Current state is a view over the latest row per `(customer_id, type)`.
-`marketing_sms` is separate from every other type and is never bundled into a
-single checkbox.
+Consent given to a retailer and consent given to MyStrideID are different
+records with different scopes. A customer agreeing that Store A may keep their
+fitting history has **not** agreed to cross-retailer identity resolution, and
+neither implies the other.
 
-## 8. `fitting_session`
+## 12. Portable vs retailer-owned data
+
+If MyStrideID ever becomes a portable consumer Fit ID, this classification is the
+product. Writing it down now costs nothing and prevents the wrong data from
+drifting into the portable set later.
+
+| Customer-portable *(person may authorize sharing)* | Retailer-owned *(never portable)* |
+| --- | --- |
+| Foot measurements and sizes | What they purchased |
+| Canonical fit features (arch, width, volume, pronation tendency) | Price paid, discounts, margin |
+| Selected scan-derived features | Associate notes |
+| Sizing history over time | Store-specific recommendation and talking points |
+| Stated preferences and fit priorities | Conversion, returns, outcome records |
+| Standardized Fit Profile | Internal merchandising and inventory data |
+
+Two rules that follow:
+
+1. **Portability is a projection, not a transfer.** An authorized share emits a
+   computed Fit Profile from the person's records; it never moves or copies a
+   retailer's row, and the retailer keeps everything.
+2. **Retailer-owned data has no consent path to portability.** It is not a
+   permission the customer can grant, because it is not theirs to grant. That
+   distinction is what makes participation safe to sell to a retailer.
+
+This is materially stronger than either extreme — "every store owns everything"
+or "Stride Guide owns one universal customer record" — and it is the reason a
+portable consumer Fit ID could end up worth more than the pressure platform.
+
+---
+
+## 13. `fitting_session`
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
-| organization_id / location_id | uuid fk | ✅ | |
-| customer_id | uuid fk | | Null for anonymous |
+| **organization_customer_id** | uuid fk | | Null for anonymous fittings |
+| **location_id** | uuid fk | ✅ | Where the fitting happened |
+| organization_id | uuid fk | ✅ | Denormalized for RLS |
 | user_id | uuid fk | ✅ | The fitter |
 | status | enum | ✅ | `draft` · `in_progress` · `completed` · `voided` |
 | void_reason | enum | | `test` · `mistaken_start` · `customer_withdrew` · `duplicate` |
-| visit_number | int | ✅ | Computed at completion |
+| visit_number | int | ✅ | Computed at completion, **within this retailer relationship** |
 | started_at / completed_at | timestamptz | ✅ / | |
-| time_to_recommendation_ms | int | | The KPI that matters, measured not estimated |
+| time_to_recommendation_ms | int | | Measured, not estimated |
 | **Intake fields** | | | shopping_purpose, current_shoe_problem[], discomfort_area[], discomfort_timing, activity_level, standing_hours_per_day, current_shoe_brand/model, current_shoe_age, fit_priority[], previous_return_reason, uses_orthotics, shoe_wear_concern, intake_notes |
 | need_summary | text | | Generated, stored for reproducibility |
 | risk_flags | text[] | | Generated |
 | device_id | text | | Tablet identity |
 | draft_saved_at / draft_synced_at | timestamptz | | Debounced autosave bookkeeping |
-| assessment_schema_version | text | ✅ | Which intake/assessment schema captured this |
+| assessment_schema_version | text | ✅ | |
 
-**Only `completed` sessions count as historical fittings.** A `draft` that was
-opened by accident never pollutes history, metrics, or the customer's record.
+Only `completed` sessions count as historical fittings.
 
-## 9. `assessment` — human observations
+## 14. `assessment` — human observations
 
-1:1 with the session. **This is one input to the canonical feature model, not the
-model itself.**
+1:1 with the session. One input to the feature model, not the model itself.
 
-| Field | Type | Req | Notes |
-| --- | --- | --- | --- |
-| fitting_session_id | uuid fk unique | ✅ | |
-| size_left / size_right | numeric(4,1) | ✅ | |
-| size_unit | enum | ✅ | Denormalized |
-| width / width_asymmetry | enum / bool | | |
-| arch_type | enum | | `low` · `medium` · `high` · `unknown` |
-| foot_shape | enum[] | | |
-| pronation_tendency | enum | | `outward` · `neutral` · `mild_inward` · `strong_inward` · `unknown` |
-| heel_slip_risk / toe_box_issue[] / wear_pattern / balance_concern / pressure_concern[] | enum | | |
-| assoc_support_level / assoc_cushioning_level / assoc_category / assoc_insole | enum | | The fitter's own call, captured **before** the engine's output is shown |
-| assessment_notes | text | | |
-| measured_at | timestamptz | | |
+`fitting_session_id` · `size_left` / `size_right` · `size_unit` · `width` ·
+`width_asymmetry` · `arch_type` · `foot_shape[]` · `pronation_tendency` ·
+`heel_slip_risk` · `toe_box_issue[]` · `wear_pattern` · `balance_concern` ·
+`pressure_concern[]` · `assoc_support_level` / `assoc_cushioning_level` /
+`assoc_category` / `assoc_insole` (the fitter's own call, captured **before** the
+engine's output is shown) · `assessment_notes` · `measured_at`.
 
-## 10. The canonical fit feature model *(replaces "the assessment schema is the sensor schema")*
+## 15. The canonical fit feature model
 
 ```
   assessment (human observation) ──┐
@@ -260,201 +381,141 @@ model itself.**
                                               recommendation engine
 ```
 
-A human can say `arch_type = low`. A sensor produces `medial_pressure_ratio =
-0.63`, a center-of-pressure track, a contact-area map and a load distribution.
-**Forcing sensor output into the human schema would throw away everything that
-makes the hardware worth building.** Instead both feed a shared, extensible
-feature model.
+A human says `arch_type = low`. A sensor produces `medial_pressure_ratio = 0.63`,
+a center-of-pressure track, a contact-area map, a load distribution. Forcing
+sensor output into the human schema would discard everything that makes the
+hardware worth building. Both feed one extensible model instead.
 
 ### `fitting_feature`
-
-One row per feature per session. This table is the recommendation engine's only
-input, and its provenance columns are first-class — not a loose JSONB blob.
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
 | fitting_session_id | uuid fk | ✅ | |
-| feature_key | text | ✅ | From the versioned feature dictionary, e.g. `arch_type`, `medial_pressure_ratio` |
-| value_categorical | text | | For enum features |
-| value_numeric | numeric | | For measured features |
+| feature_key | text | ✅ | From the versioned dictionary — `arch_type`, `medial_pressure_ratio`, … |
+| value_categorical / value_numeric | text / numeric | | |
 | unit | text | | `ratio` · `kPa` · `mm` · `pct` |
 | **source_type** | enum | ✅ | `manual` · `sensor_derived` · `intake_inferred` · `imported` · `default` |
-| **source_record_id** | uuid | | The `assessment` or `scan_derivation` row it came from |
-| **algorithm_version** | text | | Derivation algorithm that produced it (sensor only) |
-| **quality** | numeric | | 0–1 signal quality / capture confidence — a property of the measurement, not of the recommendation |
+| **source_record_id** | uuid | | The `assessment` or `scan_derivation` row |
+| **algorithm_version** | text | | Sensor only |
+| **quality** | numeric | | 0–1 signal quality — a property of the measurement, not of the recommendation |
 | **captured_at** | timestamptz | ✅ | |
-| **overridden_by_user_id** | uuid fk | | Set when a human replaces a sensor value |
+| **overridden_by_user_id** | uuid fk | | When a human replaces a sensor value |
 | **override_reason** | enum | | `disagrees_with_observation` · `poor_capture` · `customer_input` · `other` |
-| superseded_by | uuid | | Feature rows are append-only; corrections supersede |
+| superseded_by | uuid | | Append-only; corrections supersede |
 
 **Unique:** `(fitting_session_id, feature_key) where superseded_by is null`
 
 ### `feature_schema_version`
 
-The dictionary of valid `feature_key`s, their types, units and allowed values,
-versioned. Rules declare which schema version they were authored against.
-**Additive-only within a major version:** new features may be added, existing
-features never change meaning or drop enum values. That is the actual
-compatibility promise — not "rules never change."
+The dictionary of valid keys, types, units and allowed values, versioned. Rules
+declare which version they were authored against. **Additive-only within a major
+version** — new features may appear; existing features never change meaning or
+lose enum values. That is the compatibility promise, not "rules never change."
 
-## 11. `scan` — raw capture *(hardware; immutable)*
+## 16. `scan` — raw capture *(hardware; immutable)*
 
-| Field | Type | Req | Notes |
-| --- | --- | --- | --- |
-| fitting_session_id | uuid fk | ✅ | A scan is always part of a session |
-| device_id / device_installation_id | uuid fk | ✅ | |
-| firmware_version / calibration_version / hardware_revision | text | ✅ | Copied at capture time, never joined live |
-| capture_type | enum | ✅ | `static_stance` · `weight_shift` · `walk` |
-| raw_uri | text | ✅ | Object storage. Pressure frames + synchronized load-cell series |
-| raw_checksum | text | ✅ | Integrity |
-| sample_rate_hz / frame_count | int | | |
-| total_load_measured | numeric | | Load cells, captured **simultaneously** with the pressure matrix |
-| capture_quality | numeric | | |
-| captured_at | timestamptz | ✅ | |
+`fitting_session_id` · `device_id` / `device_installation_id` ·
+`firmware_version` / `calibration_version` / `hardware_revision` (copied at
+capture) · `capture_type` (`static_stance` · `weight_shift` · `walk`) ·
+`raw_uri` · `raw_checksum` · `sample_rate_hz` / `frame_count` ·
+`total_load_measured` (load cells, captured **simultaneously** with the pressure
+matrix) · `capture_quality` · `captured_at`.
 
-**Raw captures are immutable.** Never overwritten, never edited, never deleted
-while the customer record lives. Storage is cheap; a customer's foot at a moment
-in time is not repeatable.
+**Immutable.** Never overwritten, never edited. Storage is cheap; a customer's
+foot at a moment in time is not repeatable.
 
-## 12. `scan_derivation` — reprocessable interpretation
+## 17. `scan_derivation` — reprocessable interpretation
 
-| Field | Type | Req | Notes |
-| --- | --- | --- | --- |
-| scan_id | uuid fk | ✅ | |
-| algorithm_version | text | ✅ | |
-| derived | jsonb | ✅ | Peak pressure, contact area, COP path, medial/lateral ratio, L/R load split, normalized distribution |
-| quality_metrics | jsonb | | Per-metric confidence |
-| is_current | bool | ✅ | Exactly one current derivation per scan |
-| derived_at | timestamptz | ✅ | |
+`scan_id` · `algorithm_version` · `derived` (jsonb: peak pressure, contact area,
+COP path, medial/lateral ratio, L/R load split, normalized distribution) ·
+`quality_metrics` · `is_current` · `derived_at`.
 
 ```
   raw scan (immutable) ──► algorithm v1 ──► derivation v1 ──► features
                       └──► algorithm v2 ──► derivation v2 ──► better features
 ```
 
-Improving the algorithm re-reads history. Every past customer benefits from
-next year's math without being re-scanned — which is only possible because the
-raw capture was never discarded.
+Improving the algorithm re-reads history. Every past customer benefits from next
+year's math without being re-scanned.
 
-## 13. `recommendation`
+## 18. `recommendation`
 
 Immutable. A change writes a new row.
 
-| Field | Type | Req | Notes |
-| --- | --- | --- | --- |
-| fitting_session_id | uuid fk | ✅ | |
-| fit_profile | jsonb | ✅ | support_level, cushioning_level, width, volume, toe_box, heel_fit, category, insole |
-| flags | text[] | | |
-| **evidence_strength** | enum | ✅ | `high` · `moderate` · `low` — see [03 §3](03-recommendation-engine.md#3-evidence-strength-not-confidence) |
-| evidence_detail | jsonb | ✅ | Which signals agreed, which conflicted, what was missing |
-| **recommendation_engine_version** | text | ✅ | The evaluator |
-| **rule_set_version** | text | ✅ | The rule data |
-| **catalog_version** | text | ✅ | Product knowledge snapshot used for matching |
-| **feature_schema_version** | text | ✅ | Feature dictionary in force |
-| **assessment_schema_version** | text | ✅ | Capture schema in force |
-| fired_rule_ids | text[] | ✅ | |
-| feature_snapshot | jsonb | ✅ | Frozen copy of the features that produced this — reproducibility does not depend on the feature rows staying unchanged |
-| talking_points | text[] | ✅ | |
-| rationale | text | ✅ | |
-| products_considered | uuid[] | | → `product_variant` |
-| products_avoided | text[] | | Characteristics, never competitor product names |
-| overridden | bool | ✅ | |
-| override_fields | jsonb | | `{"support_level":{"from":"stability","to":"neutral"}}` |
-| override_reason | enum | | `customer_preference` · `associate_judgment` · `not_in_stock` · `budget` · `other` |
+`fitting_session_id` · `fit_profile` (jsonb) · `flags[]` · **`evidence_strength`**
+(`high` · `moderate` · `low`) · `evidence_detail` · **`recommendation_engine_version`**
+· **`rule_set_version`** · **`catalog_version`** · **`feature_schema_version`** ·
+**`assessment_schema_version`** · `fired_rule_ids[]` · `feature_snapshot` (frozen)
+· `talking_points[]` · `rationale` · `products_considered[]` ·
+`products_avoided[]` · `overridden` · `override_fields` · `override_reason`.
 
-Those five version columns are what make a recommendation from August 2026
+Those five version stamps are what make an August 2026 recommendation
 reproducible after the engine changes in 2027.
 
-## 14. `assessment_delta` — what changed since last visit
+## 19. `assessment_delta` — what changed since last visit
 
-Structured, not recomputed on the fly at render time. Longitudinal change is the
-moat; it deserves to be queryable.
+`fitting_session_id` · `previous_session_id` · `interval_days` · `changes`
+(jsonb: per feature `{feature_key, from, to, direction, magnitude,
+source_type_before, source_type_after}`) · `material_change` · `narrative`.
 
-| Field | Type | Req | Notes |
-| --- | --- | --- | --- |
-| fitting_session_id | uuid fk unique | ✅ | The later session |
-| previous_session_id | uuid fk | ✅ | |
-| interval_days | int | ✅ | |
-| changes | jsonb | ✅ | Per feature: `{feature_key, from, to, direction, magnitude, source_type_before, source_type_after}` |
-| material_change | bool | ✅ | Passed a per-feature significance threshold |
-| narrative | text | | Plain-language summary, generated once and stored |
+Computed at completion from immutable feature snapshots, so a delta stays stable
+even if a later correction supersedes a feature. Scoped **within one retailer
+relationship** — a customer's history at Store A does not silently extend into
+Store B, whatever identity resolution knows.
 
-Computed on session completion from the two immutable feature snapshots, so a
-delta is stable even if a later correction supersedes a feature.
+## 20. Catalog: three layers
 
-## 15. Catalog: three layers
+**`product_model`** — global brand knowledge: brand · model · variant ·
+model_year · category · use_case[] · support_level · cushioning_level ·
+toe_box_shape · heel_structure · flexibility · volume · drop_mm · weight_g ·
+**removable_insole** · safety_toe · slip_resistant · waterproof · best_for[] ·
+avoid_for[] · msrp · `data_source` · `verified_at` · `catalog_version`.
 
-**Global product knowledge and retailer assortment are different datasets** and
-must never share a table.
+**`product_variant`** — the sellable thing: `product_model_id` · gender · size ·
+width · colorway · upc · manufacturer_sku.
 
-### `product_model` — global, brand-level
+**`location_inventory`** — retailer assortment: `location_id` ·
+`product_variant_id` · retailer_sku · retail_price · `stocked` · quantity
+(nullable) · `source` · `last_synced_at` · notes.
 
-Brand · model · variant line · model_year · category · use_case[] ·
-support_level · cushioning_level · toe_box_shape · heel_structure · flexibility ·
-volume · drop_mm · weight_g · **removable_insole** · safety_toe ·
-slip_resistant · waterproof · best_for[] · avoid_for[] · msrp ·
-`data_source` (`curated` · `retailer` · `manufacturer`) · `verified_at` ·
-`catalog_version`.
+Quantity is optional; assortment is not. Recommending a width the store does not
+carry is the fastest way to lose an associate's trust.
 
-Fit attributes use **the same vocabulary as the recommendation output**, so
-matching is comparison rather than translation.
+## 21. `outcome`
 
-### `product_variant` — the sellable thing
+`fitting_session_id` · `outcome` (`purchased` · `purchased_other` ·
+`considering` · `no_purchase` · `ordered`) · `purchased_variant_id` ·
+`purchased_size` · `recommended_vs_purchased` · `insole_attached` ·
+`insole_type` · `sale_value` · `returned` / `return_reason` / `returned_at` ·
+`satisfaction`.
 
-`product_model_id` · gender · size · width · colorway · upc · manufacturer_sku.
-"Nike Pegasus 43 / Men's / 10.5 / 2E / Black."
+**Entirely retailer-owned** ([§12](#12-portable-vs-retailer-owned-data)). Never
+portable, under any consent.
 
-### `location_inventory` — retailer assortment
+## 22. `report` and `report_view`
 
-`location_id` · `product_variant_id` · retailer_sku · retail_price ·
-`stocked` (bool) · quantity (nullable — presence matters more than count in v1) ·
-`source` (`manual` · `csv` · `pos`) · `last_synced_at` · notes.
+The report is a **record**; the page or PDF is a rendering.
 
-**Quantity is optional; assortment is not.** Recommending a width the store does
-not carry is the fastest way to lose an associate's trust, and that only requires
-knowing what is on the wall — not how many.
-
-## 16. `outcome`
-
-| Field | Type | Req | Notes |
-| --- | --- | --- | --- |
-| fitting_session_id | uuid fk unique | ✅ | |
-| outcome | enum | ✅ | `purchased` · `purchased_other` · `considering` · `no_purchase` · `ordered` |
-| purchased_variant_id | uuid fk | | |
-| recommended_vs_purchased | enum | | `match` · `partial` · `different` — computed |
-| insole_attached | bool | ✅ | |
-| insole_type | enum | | |
-| sale_value | numeric(10,2) | | Optional; many pilots will not share it |
-| returned / return_reason / returned_at | bool / enum / ts | | Set later, by follow-up or POS |
-| satisfaction | enum | | From follow-up: `great` · `ok` · `not_working` |
-
-## 17. `report` and `report_view`
-
-The report is a **record**, not a file. The PDF or page is a rendering of it.
-
-`report`: `fitting_session_id` · `customer_id` · `report_version` ·
+`report`: `fitting_session_id` · `organization_customer_id` · `report_version` ·
 `template_version` · `access_token_hash` · `expires_at` · `revoked_at` ·
-`generated_at` · `emailed_at` · `printed_at` · `content_snapshot` (jsonb — what
-was actually shown).
+`generated_at` · `emailed_at` · `printed_at` · `content_snapshot`.
 
-`report_view`: `report_id` · `viewed_at` · `user_agent_class` · `referrer_class`.
-No IP, no fingerprint.
+`report_view`: `report_id` · `viewed_at` · `user_agent_class` ·
+`referrer_class`. No IP, no fingerprint.
 
-Access resolves `customer → fitting_session → report_version`, which keeps a
-future MyStrideID customer-history portal possible without redesigning anything.
-Tokens are stored hashed, so a database read cannot mint a working link.
+Access resolves organization_customer → fitting_session → report_version, which
+keeps a future customer-history portal possible. Tokens stored hashed.
 
-## 18. `follow_up`
+## 23. `follow_up`
 
-`organization_id` · `location_id` · `customer_id` · `fitting_session_id` ·
-`follow_up_reason` (enum) · `follow_up_due_at` · `follow_up_status`
-(`scheduled` · `done` · `snoozed` · `cancelled`) · `channel` ·
+`organization_id` · `location_id` · `organization_customer_id` ·
+`fitting_session_id` · `follow_up_reason` · `follow_up_due_at` ·
+`follow_up_status` (`scheduled` · `done` · `snoozed` · `cancelled`) · `channel` ·
 `completed_by_user_id` · `response` · `response_note`.
 
-Full model now, **minimal UI in week one** — a due list and a Done button. This
-is not a CRM and week-one hours should not be spent building one.
+Full model, **minimal UI** — a due list and a Done button. This is not a CRM.
 
-## 19. `device`, `device_installation`, `device_health_event`
+## 24. `device`, `device_installation`, `device_health_event`
 
 Built before hardware ships. Diagnosing a remote unit by flying to it is not a
 business model.
@@ -465,39 +526,37 @@ current_firmware_version · current_calibration_version · status
 
 **`device_installation`:** device_id · organization_id · location_id ·
 installed_at · removed_at · host_machine_id. Scans reference the *installation*,
-so a device that moves between locations keeps a clean history.
+so a device that moves keeps a clean history.
 
 **`device_health_event`:** device_id · event_type (`heartbeat` · `error` ·
 `calibration` · `firmware_update` · `self_test`) · firmware_version ·
-calibration_version · connectivity · signal_quality · component_status (jsonb) ·
+calibration_version · connectivity · signal_quality · component_status ·
 error_code · reported_at.
 
-Every scan therefore knows exactly which device, firmware, calibration and
-derivation algorithm produced it.
+## 25. `pilot_feedback`
 
-## 20. `pilot_feedback`
-
-`organization_id` · `location_id` · `user_id` · `fitting_session_id` ·
-`type` (`bug` · `confusing` · `too_slow` · `wrong_recommendation` · `idea` ·
-`praise`) · `screen` · `note` · `input_snapshot` (jsonb — full feature state for
-`wrong_recommendation`, making each report a reproducible test case) · `status`.
+`organization_id` · `location_id` · `user_id` · `fitting_session_id` · `type`
+(`bug` · `confusing` · `too_slow` · `wrong_recommendation` · `idea` · `praise`) ·
+`screen` · `note` · `input_snapshot` (full feature state for
+`wrong_recommendation`) · `status`.
 
 ---
 
-## 21. Access, retention, privacy
+## 26. Access, retention, privacy
 
 | Concern | Decision |
 | --- | --- |
-| Tenancy | RLS on `organization_id` for every table, plus `location_id` predicates where `customer_visibility = 'location'`. |
-| Service role | Server-side jobs use a distinct role with explicit, audited grants. Never the anon key, never a shared "admin" path from client code. |
+| Tenancy | RLS on `organization_id` everywhere, **plus** a `location_customer_access` predicate on every customer-scoped read. |
+| Cross-retailer | No query path joins two organizations' customer data. Identity resolution runs in an isolated service with its own credentials and its own audit log. |
+| Service role | Server-side jobs use a distinct role with explicit, audited grants. Never the anon key. |
 | Floor auth | The tablet authenticates as the location; the user is selected. User identity is attribution, not a security boundary. |
-| Report links | Token hashed at rest, expiring, revocable, resolving through `report` — never a guessable or enumerable ID. |
-| Storage | Scan and logo objects carry the same tenant predicates as their rows. A signed URL is scoped and short-lived. |
-| PII | Names and contact data live only on `customer`, hashed or encrypted per §6. |
-| Analytics | Event payloads carry IDs and enums only. No names, phones, notes, report URLs or pressure data leaves the application boundary. |
-| Exports | Default export is de-identified. Identified export is a separate, logged, role-gated action. |
-| Retention | Fit data retained while the organization is active. Erasure scrubs identity, retains anonymized fit records for aggregate learning — stated plainly in the consent text. |
-| Audit | `consent_record`, `recommendation`, `scan` and `fitting_feature` are append-only. |
+| Report links | Token hashed at rest, expiring, revocable, resolving through `report`. |
+| Storage | Scan and logo objects carry the same tenant predicates as their rows. |
+| PII | Names and contact data live only on `organization_customer`, hashed or encrypted per §10. `person_identity` holds no contact data at all. |
+| Analytics | IDs and enums only. No names, phones, notes, report URLs or pressure data. |
+| Exports | De-identified by default. Identified export is a separate, logged, role-gated action. |
+| Retention | Retained while the organization is active. Erasure scrubs identity, retains anonymized fit records for aggregate learning — stated plainly in the consent text. Revoking identity resolution never deletes a retailer's own records. |
+| Audit | `consent_record`, `identity_resolution`, `recommendation`, `scan` and `fitting_feature` are append-only. |
 
 ---
 

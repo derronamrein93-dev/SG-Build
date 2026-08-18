@@ -47,7 +47,7 @@ their assortment list, and permission to use de-identified outcomes.
 ### What must be captured before Phase 1
 
 These eight facts change the architecture, not just the roadmap. Capture them
-into `location` ([05 §3](05-data-model.md#3-location)) as real fields.
+into `location` ([05 §3](05-data-model.md#4-location)) as real fields.
 
 | # | Capture | Why it changes the build |
 | --- | --- | --- |
@@ -98,6 +98,29 @@ MyStrideID.com content, redirects, or stays as a separate brand site — it is a
 
 ---
 
+## 3b. Standing architectural instruction — customer identity
+
+This is a build constraint, not a preference. It holds for every line of code
+written from Day 1 onward.
+
+> Architect customer data as retailer-scoped relationships linked optionally to a
+> separate global `person_identity`. A retailer's customer and fitting records
+> remain organization/location scoped. Global identity resolution must not imply
+> cross-retailer visibility. Identity matching, consumer consent, and retailer
+> authorization must be separate concepts. `person_identity_id` must be nullable
+> so MyStrideID can be introduced later without migrating existing customer
+> records.
+
+What this buys: the commercial decision about whether MyStrideID becomes a
+cross-retailer network **does not have to be made now**, and stays reversible
+either way. Day 1 ships a conventional retailer-owned customer system. The option
+on a portable consumer Fit ID — plausibly worth more than the pressure platform —
+costs one nullable column and a resolution table nobody has to use yet.
+
+Schema in [05 §6–§12](05-data-model.md#6-person_identity--global-optional-deliberately-almost-empty).
+
+---
+
 ## 4. The 7-day plan
 
 ~8–10 focused hours per day. One deliverable and one gate per day.
@@ -113,11 +136,19 @@ MyStrideID.com content, redirects, or stays as a separate brand site — it is a
 
 ### Day 1 — Tenancy spine
 
-Migrations for `organization → location → user → customer → fitting_session` ·
-RLS on every table · service-role separation · Next.js + Tailwind skeleton with
-[08](08-design-language.md) tokens · user picker · create and persist a session.
+Migrations for `organization → location → user → organization_customer →
+fitting_session` · `location_customer_access` enforced in RLS ·
+`person_identity` and `identity_resolution` created but **unused**, with
+`person_identity_id` null throughout · service-role separation · Next.js +
+Tailwind skeleton with [08](08-design-language.md) tokens · user picker · create
+and persist a session.
 
-**Deliverable:** a fitting session exists under a real tenant hierarchy.
+The identity tables cost perhaps twenty minutes on Day 1 and are the entire
+reason the MyStrideID decision can wait. Nothing reads them yet.
+
+**Deliverable:** a fitting session exists under a real tenant hierarchy, with a
+customer numbered per retailer and visible only at the location that created
+them.
 
 **Gate — the tenant isolation suite, all six passing:**
 
@@ -127,13 +158,15 @@ RLS on every table · service-role separation · Next.js + Tailwind skeleton wit
 4. A report URL cannot be walked to another report by altering an ID.
 5. **Storage objects** obey the same tenant boundary as their rows.
 6. **Service-role operations are explicitly separated** from user operations and are audited.
+7. A customer created at Location 1 is **invisible at Location 2** of the same organization until an access grant exists.
+8. Setting `person_identity_id` on two organizations' customers creates **no** query path between them.
 
 A passing `SELECT` test alone is not isolation. Fix this on Day 1 or never.
 
 ### Day 2 — Flow
 
-Customer search/create on **HMAC phone lookup** ([05 §6](05-data-model.md#6-phone-identity--why-hashed-and-what-it-costs)) ·
-multi-type consent capture ([05 §7](05-data-model.md#7-consent_record)) ·
+Customer search/create on **HMAC phone lookup** ([05 §6](05-data-model.md#10-contact-identity--keyed-hashes-scoped-per-organization)) ·
+multi-type consent capture ([05 §7](05-data-model.md#11-consent_record)) ·
 Intake · Assessment · draft lifecycle.
 
 **Autosave, done properly** — not a write per tap:
@@ -156,7 +189,7 @@ fields now.
 This is the product. Build it as an explicit contract, not a lookup table.
 
 ```
-  observed_features        canonical, provenanced  ([05 §10](05-data-model.md#10-the-canonical-fit-feature-model-replaces-the-assessment-schema-is-the-sensor-schema))
+  observed_features        canonical, provenanced  ([05 §10](05-data-model.md#15-the-canonical-fit-feature-model))
         ↓
   derived_fit_profile      support / cushioning / width / volume / toe box / heel / category / insole
         ↓
@@ -186,7 +219,7 @@ agrees with the reasoning. Memory of past customers is not validation.
 
 ### Day 4 — Artifact
 
-Report as a **record** ([05 §17](05-data-model.md#17-report-and-report_view)):
+Report as a **record** ([05 §17](05-data-model.md#22-report-and-report_view)):
 `report_version`, `template_version`, hashed access token, expiry, revocation ·
 server-rendered page · print stylesheet on a real printer · transactional email ·
 `generated_at` / `emailed_at` / `printed_at` / view log.
@@ -204,7 +237,7 @@ compliance problem that is tedious to unwind.
 ### Day 5 — Operations, and the real test
 
 Dashboard · customer profile · fit history · **structured `assessment_delta`**
-([05 §14](05-data-model.md#14-assessment_delta--what-changed-since-last-visit)) —
+([05 §14](05-data-model.md#19-assessment_delta--what-changed-since-last-visit)) —
 stored as data, not computed at render · minimal follow-up (due list + Done,
 nothing more) · pilot feedback sheet · outcome capture.
 
@@ -222,7 +255,7 @@ every hesitation.
 ### Day 6 — Catalog and repair
 
 Morning: fix everything Day 5 exposed. Afternoon: catalog in three layers
-([05 §15](05-data-model.md#15-catalog-three-layers)) — `product_model` (global
+([05 §15](05-data-model.md#20-catalog-three-layers)) — `product_model` (global
 knowledge) → `product_variant` (sellable) → `location_inventory` (assortment).
 
 **Priority set by Phase 0 fact #2:** if the partner can export inventory, **CSV
@@ -310,7 +343,7 @@ The architecture must welcome that, not promise it will not happen.
 ### Integration steps (weeks 5–8)
 
 1. **Device identity first.** `device`, `device_installation`,
-   `device_health_event` ([05 §19](05-data-model.md#19-device-device_installation-device_health_event)).
+   `device_health_event` ([05 §19](05-data-model.md#24-device-device_installation-device_health_event)).
    Every scan records which device, firmware, calibration and hardware revision
    produced it.
 2. **Authenticated ingest:** platform → store host → signed ingest endpoint, with
@@ -384,12 +417,12 @@ advice before any claim shifts toward health outcomes.
     defined combination? This belongs in the design-partner agreement before the
     first real fitting, not after. `data_owner_terms_version` records which
     answer applied.
-11. **When should a chain opt into org-wide customer visibility?**
-    *Settled by the approved system map:* customers are owned by a location and
-    `customer_visibility` defaults to `location`. The remaining question is
-    commercial, not structural — at what point does a multi-location retailer
-    want a customer fitted at one door recognized at another, and does the
-    customer's consent text need to say so before that switch is flipped?
+11. **When should a chain grant customer access across its own locations?**
+    *Structurally settled:* `location_customer_access` defaults to the creating
+    location only, and wider access is an explicit, auditable grant. The
+    remaining question is commercial — at what point does a multi-location
+    retailer want a customer fitted at one door recognized at another, and does
+    the consent wording need to say so before those grants are issued?
 12. **What happens when two different retailers fit the same consumer?** Today:
     two unlinked customer records, by design. Linking them is a product and
     consent decision, not an accident to stumble into.

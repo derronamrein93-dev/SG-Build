@@ -44,7 +44,7 @@ instantly and avoids implying measurement precision the system does not have.
 ## 2b. The report is a record, not a file
 
 The PDF or printed page is a *rendering*. The durable object is a `report` row
-([05 §17](05-data-model.md#17-report-and-report_view)) carrying
+([05 §17](05-data-model.md#22-report-and-report_view)) carrying
 `report_version`, `template_version`, a `content_snapshot` of exactly what was
 shown, and lifecycle timestamps: `generated_at`, `emailed_at`, `printed_at`,
 plus a `report_view` log.
