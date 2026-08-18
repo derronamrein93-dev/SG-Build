@@ -1,0 +1,38 @@
+# Repository-wide ignores.
+#
+# Secrets rules come from CLAUDE.md ("Security rules"): .env, .env.*, and
+# credential files stay ignored, always. .env.example is the one deliberate
+# exception — it carries placeholders only and is meant to be committed.
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+.netrc
+.pgpass
+credentials.json
+secrets.json
+service-account*.json
+
+# Dependencies and build output
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Logs and local scratch
+*.log
+npm-debug.log*
+nohup.out
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
