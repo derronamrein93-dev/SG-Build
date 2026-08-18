@@ -35,6 +35,96 @@ leaves with a branded fit report. The store keeps the fit record. When the
 pressure platform ships, it fills in the same fields the associate is filling in
 by hand today, so the rules, reports and history all carry forward untouched.
 
+## System map
+
+The canonical architecture. Every document in this blueprint implements some
+part of this diagram, and the mapping table below says which.
+
+```
+                         Organization
+                              │
+                           Location
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+                 Customer            Associate
+                    │
+                    │
+              Fitting Session
+                    │
+        ┌───────────┴────────────┐
+        │                        │
+ Manual Observations        Sensor Scan
+        │                        │
+        │                  Raw Capture
+        │                        │
+        │                 Derivation Engine
+        │                        │
+        └──────────┬─────────────┘
+                   │
+          Canonical Fit Features
+                   │
+          Recommendation Engine
+                   │
+             Product Needs
+                   │
+          Catalog / Inventory
+                   │
+         Ranked Recommendations
+                   │
+          ┌────────┴─────────┐
+          │                  │
+       Fit Report          Outcome
+                             │
+                       Future Visit
+                             │
+                       Longitudinal
+                         Fit History
+```
+
+| Box | Implemented by | Spec |
+| --- | --- | --- |
+| Organization · Location | `organization`, `location` | [05 §1–§3](05-data-model.md#1-tenancy-organization--location) |
+| Associate | `user` (+ `user_location`) | [05 §4](05-data-model.md#4-user-staff) |
+| Customer | `customer`, `consent_record` | [05 §5–§7](05-data-model.md#5-customer) |
+| Fitting Session | `fitting_session` | [05 §8](05-data-model.md#8-fitting_session) |
+| Manual Observations | `assessment` | [05 §9](05-data-model.md#9-assessment--human-observations) |
+| Sensor Scan → Raw Capture | `scan` (immutable) | [05 §11](05-data-model.md#11-scan--raw-capture-hardware-immutable) |
+| Derivation Engine | `scan_derivation` (versioned, re-runnable) | [05 §12](05-data-model.md#12-scan_derivation--reprocessable-interpretation) |
+| **Canonical Fit Features** | `fitting_feature` + `feature_schema_version` | [05 §10](05-data-model.md#10-the-canonical-fit-feature-model-replaces-the-assessment-schema-is-the-sensor-schema) |
+| Recommendation Engine | Rule evaluator, deterministic | [03 §1](03-recommendation-engine.md#the-recommendation-contract) |
+| Product Needs | `product_requirements` — stage 3 of the contract | [03 §1](03-recommendation-engine.md#the-recommendation-contract) |
+| Catalog / Inventory | `product_model` → `product_variant` → `location_inventory` | [05 §15](05-data-model.md#15-catalog-three-layers) |
+| Ranked Recommendations | `recommendation` (immutable, five version stamps) | [05 §13](05-data-model.md#13-recommendation) |
+| Fit Report | `report`, `report_view` | [04](04-fit-report.md) · [05 §17](05-data-model.md#17-report-and-report_view) |
+| Outcome | `outcome` | [05 §16](05-data-model.md#16-outcome) |
+| Future Visit | `follow_up` → next `fitting_session` | [05 §18](05-data-model.md#18-follow_up) |
+| Longitudinal Fit History | `assessment_delta` | [05 §14](05-data-model.md#14-assessment_delta--what-changed-since-last-visit) |
+
+**The waist of the diagram is the whole architecture.** Manual observations and
+sensor derivation converge on Canonical Fit Features, and everything below that
+line is written once and never rewritten when hardware arrives. Everything above
+it can change source without disturbing anything below.
+
+### Two places the schema currently differs from the diagram
+
+Both are deliberate and both are reversible — flagging them rather than silently
+resolving them either way.
+
+1. **Customer hangs off Organization, not Location.** The diagram puts Customer
+   under Location. The schema puts it under Organization with a
+   `customer_visibility` policy field (`organization` | `location`), so a chain
+   can decide whether a customer fitted at one door is recognized at another.
+   Setting that field to `location` makes the schema behave exactly as drawn.
+   This is [open question 11](09-build-plan.md#7-open-questions).
+2. **Associate is Organization-level with location assignment.** The diagram puts
+   Associate under Location. The schema has `user` on the organization with a
+   `user_location` join, because staff who cover two doors are common and the
+   alternative is duplicate people records. Functionally identical for a
+   single-location retailer.
+
+Say the word if either should match the drawing literally instead.
+
 ## The load-bearing decisions
 
 1. **Tenancy is `organization → location`, never `store`.** The UI says store;

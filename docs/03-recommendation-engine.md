@@ -23,6 +23,7 @@ ahead**.
         ↓                 · heel fit · category · insole
   product_requirements    the abstract characteristics a shoe must have
         ↓                 (stack geometry, support structure, last shape, depth)
+                          — drawn as "Product Needs" on the system map
   candidate_products      filtered against this location's assortment
         ↓
   ranking                 ordered, each with a reason

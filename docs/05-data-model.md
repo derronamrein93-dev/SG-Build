@@ -12,6 +12,20 @@ omitted from the tables below.
 
 ---
 
+## 0. Where this sits
+
+This document is the storage layer for the canonical
+[system map](README.md#system-map). Read the map first — it is the shape; this is
+the shape written down in tables.
+
+The single most important line on that map is the one where **Manual
+Observations** and **Derivation Engine** converge on **Canonical Fit Features**.
+Everything below that convergence (§10 onward) is written once and survives the
+hardware; everything above it can change source without disturbing anything
+below.
+
+---
+
 ## 1. Tenancy: organization → location
 
 **The UI says "store." The database never does.** Every future customer shape —
