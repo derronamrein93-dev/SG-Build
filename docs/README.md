@@ -5,9 +5,9 @@ interface an associate runs on a tablet during a live customer fitting, built to
 be valuable before the pressure-mapping hardware ships and to absorb that
 hardware without a rewrite.
 
-**Status:** **revision 2** — founder red-pen review applied in full. No code has
-been written against this yet; that is deliberate. Approve, or mark it up again,
-and then the prototype gets built from it.
+**Status:** **revision 3** — founder red-pen review applied in full, plus the
+customer-identity refinement. The prototype built from this blueprint lives in
+[`../fitos`](../fitos/README.md).
 
 ## Read in this order
 
@@ -23,6 +23,7 @@ and then the prototype gets built from it.
 | 07 | [AI Agent Roadmap](07-ai-roadmap.md) | Five-layer architecture, provider independence, phasing |
 | 08 | [Design Language](08-design-language.md) | Brand direction, tokens, tablet ergonomics |
 | 09 | [Build Plan](09-build-plan.md) | Build sequence, hardware integration, 7-day execution plan |
+| 10 | [Day 5 Usability Test](10-day5-usability-test.md) | The unmoderated associate test: scenarios, observer sheet, success and failure criteria |
 
 ## The one-paragraph version
 

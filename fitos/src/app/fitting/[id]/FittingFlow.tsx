@@ -103,7 +103,7 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
 
   async function finish() {
     const { token } = await completeFitting(sessionId);
-    startTransition(() => router.push(`/fitting/${sessionId}/report?t=${token}`));
+    startTransition(() => router.push(`/r/${token}`));
   }
 
   const elapsed = Math.round((Date.now() - started.current) / 1000);

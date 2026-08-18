@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { withTenant } from '../lib/db/client';
 import { currentContext } from '../lib/session';
 import { recommend, toObservedFeatures } from '../lib/rules/engine';
+import { composeWhy } from '../lib/report/language';
+import { buildToldUs } from '../lib/report/toldUs';
 import { loadCatalog } from '../lib/queries';
 
 /** Debounced autosave target. Every field write lands here; there is no Save button. */
@@ -96,6 +98,9 @@ export async function computeRecommendation(sessionId: string) {
 export async function completeFitting(sessionId: string, overrides?: Record<string, string>) {
   const ctx = currentContext();
   const rec = await computeRecommendation(sessionId);
+  // Compose once, at completion, and freeze it onto the report record — never
+  // on the critical path of the fitting, and never regenerated on each view.
+  const language = composeWhy(rec, rec.featureSnapshot);
   // A report is a record; the page is a rendering of it. The token is stored
   // hashed so a database read cannot mint a working link.
   const token = randomBytes(24).toString('base64url');
@@ -109,7 +114,8 @@ export async function completeFitting(sessionId: string, overrides?: Record<stri
             and created_at = (select max(created_at) from recommendation where fitting_session_id = $1)`,
         [sessionId, overrides]);
     }
-    const started = await c.query('select started_at, organization_customer_id from fitting_session where id = $1', [sessionId]);
+    const started = await c.query('select * from fitting_session where id = $1', [sessionId]);
+    const toldUs = buildToldUs(started.rows[0]);
     await c.query(
       `update fitting_session
           set status = 'completed', completed_at = now(),
@@ -119,8 +125,15 @@ export async function completeFitting(sessionId: string, overrides?: Record<stri
       `insert into report (fitting_session_id,organization_customer_id,report_version,access_token_hash,expires_at,content_snapshot)
        values ($1,$2,1,$3, now() + interval '90 days', $4)`,
       [sessionId, started.rows[0].organization_customer_id, tokenHash,
-       { fitProfile: rec.fitProfile, rationale: rec.rationale, flags: rec.flags,
-         evidence: rec.evidenceStrength, candidates: rec.candidates, avoid: rec.avoid }]);
+       { fitProfile: rec.fitProfile, flags: rec.flags, evidence: rec.evidenceStrength,
+         candidates: rec.candidates, avoid: rec.avoid,
+         toldUs,
+         why: language.paragraph,
+         languageProvider: language.provider,
+         languageVersion: language.version,
+         // the raw rule strings stay on the record for audit; the customer
+         // never sees them
+         ruleRationale: rec.rationale }]);
   });
   revalidatePath('/');
   return { token };

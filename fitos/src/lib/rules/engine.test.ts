@@ -281,3 +281,25 @@ test('G34 measured foot volume carries through', () => {
   assert.equal(recommend(F({}, { foot_shape: ['high_volume'] })).fitProfile.volume, 'high');
   assert.equal(recommend(F({}, { foot_shape: ['low_volume'] })).fitProfile.volume, 'low');
 });
+
+// ── 35 · the guardrail filter itself ────────────────────────────────
+// Found when a paragraph reading "holds you more securely" was rejected for
+// containing "cure". A filter that silently discards good copy is worse than
+// no filter, because nothing surfaces the false positive.
+
+test('G35 guardrails match words, not substrings', () => {
+  for (const innocent of [
+    'a back that holds you more securely',
+    'an accurate measurement of both feet',
+    'we secured the heel with a lacing change',
+    'a treatment room is not part of a shoe store',
+  ]) {
+    const hits = violatesGuardrails(innocent);
+    assert.deepEqual(hits.filter((h) => ['cure', 'treat'].includes(h)), [],
+      `false positive on: ${innocent}`);
+  }
+  // and still catches the real thing
+  assert.ok(violatesGuardrails('this will cure your pain').includes('cure'));
+  assert.ok(violatesGuardrails('we treat plantar fasciitis here').includes('treat'));
+  assert.ok(violatesGuardrails('This will fix your heel.').includes('will fix'));
+});

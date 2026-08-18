@@ -55,7 +55,19 @@ export const BANNED_TERMS = [
   'medically recommended', 'orthopedically necessary', 'will fix',
 ];
 
+/**
+ * Word-boundary matching, not substring.
+ *
+ * A naive `includes()` flags "securely" for "cure", "accurate" for "cure",
+ * "treatment room" is a real hit but "retreat" is not. False positives are not
+ * harmless here: this filter silently discards generated copy, so a sloppy
+ * match would quietly degrade every good paragraph to the fallback and nobody
+ * would see why.
+ */
+const BANNED_PATTERNS = BANNED_TERMS.map(
+  (term) => new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
+);
+
 export function violatesGuardrails(text: string): string[] {
-  const lower = text.toLowerCase();
-  return BANNED_TERMS.filter((t) => lower.includes(t));
+  return BANNED_TERMS.filter((_, i) => BANNED_PATTERNS[i].test(text));
 }

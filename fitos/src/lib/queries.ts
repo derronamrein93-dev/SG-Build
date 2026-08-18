@@ -145,20 +145,3 @@ export async function loadCatalog(): Promise<CatalogItem[]> {
   });
 }
 
-export async function loadReport(sessionId: string) {
-  const ctx = currentContext();
-  return withTenant(ctx, async (c) => {
-    const { rows } = await c.query(
-      `select r.*, s.shopping_purpose, s.visit_number, s.completed_at,
-              c.first_name, c.last_name, u.first_name as fitter,
-              l.name as location_name, l.address_line1, l.city, l.region, l.phone as location_phone
-         from report r
-         join fitting_session s on s.id = r.fitting_session_id
-         left join organization_customer c on c.id = s.organization_customer_id
-         join app_user u on u.id = s.user_id
-         join location l on l.id = s.location_id
-        where r.fitting_session_id = $1
-        order by r.report_version desc limit 1`, [sessionId]);
-    return rows[0] ?? null;
-  });
-}

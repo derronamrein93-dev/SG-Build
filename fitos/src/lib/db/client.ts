@@ -42,6 +42,11 @@ export async function withTenant<T>(ctx: TenantContext, fn: (c: PoolClient) => P
   }
 }
 
+/** Release the connection pool. Tests call this; the server never does. */
+export async function closePool(): Promise<void> {
+  await pool.end();
+}
+
 /** Service role: seeding, jobs, identity resolution. Never reachable from a page. */
 export async function withService<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
