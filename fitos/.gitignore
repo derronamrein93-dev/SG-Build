@@ -2,9 +2,4 @@ node_modules/
 .next/
 next-env.d.ts
 *.tsbuildinfo
-
-# Env files are ignored repo-wide by the root .gitignore; repeated here so the
-# rule survives if this directory is ever extracted on its own.
-.env
-.env.*
-!.env.example
+.env*.local
