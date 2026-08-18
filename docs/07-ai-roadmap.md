@@ -119,7 +119,22 @@ over time, and it is entirely yours.**
 
 Deterministic rules only. Deliberate: zero latency, zero cost, zero
 non-determinism, and complete explainability while you are earning trust with the
-first four stores. **Ship the data collection, not the intelligence.**
+first retailers. **Ship the data collection, not the intelligence.**
+
+**The wall is absolute and worth restating.** Three separate systems, never
+merged:
+
+| System | Status | Permitted to |
+| --- | --- | --- |
+| **Recommendation Engine v1** | Built now | Decide. Fully deterministic. |
+| **AI Explanation Layer** | Later, optional | *Render* structured results in natural language. Never alter, add to, reorder or re-rank them. |
+| **ML Recommendation Engine** | Much later | Re-rank on top of the rules, once outcome data exists. Never replace the rule floor. |
+
+A language model that "just tweaks" a recommendation has silently become the
+recommender, and the reproducibility guarantee dies with it. Every generated
+string is tied to a `rule_set_version` and a frozen feature snapshot, so the
+prose can be regenerated and compared against what a customer was actually
+shown.
 
 ### Phase 1 — Language layer (weeks 4–8)
 
@@ -173,11 +188,15 @@ today.
 1. **The engine decides; the model phrases.** No LLM output alters a
    recommendation attribute — ever.
 2. **Every generated customer-facing string passes the guardrail filter.**
-3. **Every agent action is logged with its inputs**, reproducible after the fact.
+3. **Every agent action is logged with its inputs**, reproducible after the fact,
+   stamped with the same five versions a recommendation carries
+   ([03 §1](03-recommendation-engine.md#mandatory-version-stamping)).
 4. **Drafts, not sends.** Outbound customer communication is human-approved
-   until there is evidence it can be trusted.
+   until there is evidence it can be trusted, and transactional messages stay
+   separate from marketing ones.
 5. **No customer PII in prompts.** Fit profiles are anonymous by construction —
-   send the profile, not the person.
+   send the profile, not the person. Same allowlist discipline as analytics
+   ([06 §4](06-tech-and-data-strategy.md#4-analytics-and-error-reporting--privacy-rules)).
 6. **An eval set gates every prompt or model change.** Same discipline as the
    rules' golden test set.
 

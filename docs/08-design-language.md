@@ -115,7 +115,7 @@ held at arm's length under store lighting is a usability failure, not a density 
 | **Stepper (sizes)** | Large −/+ targets (56×56) flanking a tabular numeral. Never a dropdown; never a keyboard. |
 | **Primary button** | `--accent` fill, white text, 56px tall, bottom-right. One per screen. |
 | **Level indicator** | Four dots, filled to level. Same visual in UI and report — one idea, rendered once. |
-| **Confidence badge** | Text + dot, three states. Never a percentage or a gauge. |
+| **Evidence badge** | Text + dot, three states (Strong / Moderate / Limited). Never a percentage, never a gauge — both imply calibration the system does not have. |
 | **Foot diagram** | Simple line outline with tappable zones (heel / arch / forefoot / toes). Anatomically plausible, never anatomically detailed — detail pushes it toward medical. |
 | **Card** | White, 1px `--line`, 10px radius, 16–24px padding. |
 | **Bottom sheet** | Used instead of modals throughout the fitting flow. |

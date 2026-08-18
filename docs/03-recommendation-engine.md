@@ -7,37 +7,43 @@ interface around this file.
 
 ## 1. Architecture
 
-### Two stages, deliberately separated
+> **Revision 2.** The pipeline is stated as an explicit six-stage contract;
+> "confidence" is renamed and defined; version stamping is mandatory; the wall
+> between deterministic rules and any language model is made absolute.
+
+### The recommendation contract
+
+Six named stages. Each has a defined input and output, and **no stage may skip
+ahead**.
 
 ```
-  intake + assessment inputs
-            │
-            ▼
-   ┌────────────────────┐   Stage 1: RULES → FIT PROFILE
-   │  Rule evaluation   │   Rules never name a product. They vote, with
-   │  (all rules, all   │   weights, on abstract fit attributes.
-   │   at once)         │
-   └─────────┬──────────┘
-             ▼
-   ┌────────────────────┐   The fit profile is the durable asset. It is
-   │    FIT PROFILE     │   what goes in the report, the history, and the
-   │  support: stability│   customer record. It outlives any catalog.
-   │  cushion:  plush   │
-   │  width:    wide    │
-   │  insole:   anti-fat│
-   └─────────┬──────────┘
-             ▼
-   ┌────────────────────┐   Stage 2: PROFILE → PRODUCTS
-   │  Catalog matching  │   A filter/rank over the store's shoe data.
-   │  (store inventory) │   Swappable, per-store, and allowed to be empty.
-   └────────────────────┘
+  observed_features       canonical, provenanced, versioned
+        ↓                 (05 §10 — manual + sensor both land here)
+  derived_fit_profile     support · cushioning · width · volume · toe box
+        ↓                 · heel fit · category · insole
+  product_requirements    the abstract characteristics a shoe must have
+        ↓                 (stack geometry, support structure, last shape, depth)
+  candidate_products      filtered against this location's assortment
+        ↓
+  ranking                 ordered, each with a reason
+        ↓
+  explanation             associate talking points + customer rationale
 ```
 
-**Why this split matters:** inventory changes weekly and varies per store; fit
-logic does not. If rules pointed directly at products, every rule would rot every
-season and no rule could be shared across stores. Splitting them means the fit
-knowledge compounds while the catalog churns — and it means FitOS is useful on
-day one in a store that has not imported a single SKU.
+**`low_arch` must never become "recommend the Brooks Adrenaline."** It becomes a
+stability *requirement*, which becomes midsole and support *characteristics*,
+which match *candidates*, which *rank*. Collapsing those layers would tie the
+intelligence to one season's catalog and destroy the part of the system worth
+protecting.
+
+Two consequences worth naming:
+
+- **Portability.** The same fit profile produces sensible output in a running
+  store, a work-boot store and an orthopedic shop, because only the last two
+  stages touch the catalog.
+- **IP.** The defensible asset is the mapping from features to requirements —
+  stages 1–3. Stages 4–6 are commodity filtering. Keeping the boundary clean
+  keeps the story clean.
 
 ### Why rules, not a model
 
@@ -47,14 +53,45 @@ day one in a store that has not imported a single SKU.
 | Works with zero training data | Yes | No — and you have zero |
 | Deterministic and testable | Yes | No |
 | Runs offline in <5ms | Yes | Depends |
-| Legally defensible | Yes — you can point at the logic | Hard |
+| Defensible when questioned | Yes — you can point at the logic | Hard |
 | Tunable by the founder in an afternoon | Yes | No |
 
 A model becomes interesting at ~2,000 recorded outcomes. Until then, 30 good
 rules beat a bad model, and the rules generate exactly the labeled data a model
 would later need.
 
----
+### The wall between rules and language models
+
+Three separate things, kept separate on purpose:
+
+| Layer | Status in v1 | Rule |
+| --- | --- | --- |
+| **Recommendation Engine v1** | Built | Fully deterministic. Rules and thresholds only. |
+| **AI Explanation Layer** | Optional, later | May *render* structured results in natural language. May **never** alter, add to, or reorder a recommendation. |
+| **ML Recommendation Engine** | Later | Only after sufficient outcome data, and layered on top of the rules rather than replacing them. |
+
+**No language model determines a shoe recommendation in v1.** When one is
+introduced, it explains structured results — it does not invent them. That is
+what makes every recommendation reproducible, and reproducibility is a
+requirement, not a preference.
+
+### Mandatory version stamping
+
+Reproducibility has a cost, and it is five columns on every recommendation:
+
+| Stamp | Answers |
+| --- | --- |
+| `recommendation_engine_version` | Which evaluator ran |
+| `rule_set_version` | Which rules were in force |
+| `catalog_version` | Which product knowledge was matched against |
+| `feature_schema_version` | Which feature dictionary applied |
+| `assessment_schema_version` | Which capture schema produced the inputs |
+
+Plus a frozen `feature_snapshot`, so a later correction to a feature row cannot
+silently change what a past recommendation appears to have been based on.
+
+**A fitting from August 2026 must still be reproducible after the engine changes
+in 2027.** Without these stamps that sentence is marketing.
 
 ## 2. Output vocabulary
 
@@ -77,29 +114,45 @@ Weights: **+3** strong, **+2** moderate, **+1** weak, **−2** contraindicated.
 
 ---
 
-## 3. Scoring, confidence, and conflicts
+## 3. Evidence strength, not "confidence"
+
+### Why the word changed
+
+"Confidence" implies calibrated probability. Nothing here is calibrated against
+outcomes, and a customer reading "93% confidence" will hear statistical
+certainty about their body. That is both untrue and unwise.
+
+The output is renamed **Evidence Strength** — how much the available signals
+agree — and it is defined by an algorithm anyone can read, not a vibe.
 
 ### Scoring
 
 All rules evaluate; matched rules add weights to attribute values; the highest
-total per attribute wins. No rule ordering, no early exit — order-independence is
-what keeps the engine testable.
+total per attribute wins. No rule ordering, no early exit — order-independence
+is what keeps the engine testable.
 
-### Confidence (0–100)
+### Evidence strength — the definition
 
-| Component | Max | Definition |
+Three states, each with a stated condition. No percentage is ever displayed.
+
+| State | Condition | UI treatment |
 | --- | --- | --- |
-| Input completeness | 40 | 5 points each for: purpose, discomfort area, arch type, width, pronation, wear pattern, standing hours, sizes. |
-| Rule agreement | 40 | Margin between the winning value and the runner-up on `support_level` and `cushioning_level`, normalized. Unanimity scores full. |
-| Conflict penalty | −20 | −10 per hard conflict (defined below), floored at −20. |
+| **HIGH** | All primary signals present and agreeing. Winning value for `support_level` and `cushioning_level` leads its runner-up by ≥ 2 weight, and there are no hard conflicts. | Proceed normally |
+| **MODERATE** | One secondary conflict, **or** one primary signal missing, **or** a winning margin of exactly 1. | Shows the single input that would most improve it |
+| **LOW** | A primary signal is missing **or** two primary signals contradict each other. | "Rely on the try-on," plus a prompt for the two most valuable missing inputs |
 
-| Band | Score | UI treatment |
-| --- | --- | --- |
-| High | ≥ 75 | "Confidence: High" — proceed normally |
-| Moderate | 50–74 | Shows the single input that would most improve it |
-| Low | < 50 | "Rely on the try-on" + prompt for the two missing inputs. Report still generates; it simply leans on associate notes. |
+**Primary signals:** shopping purpose · discomfort area · arch type · width ·
+pronation tendency · wear pattern.
+**Secondary signals:** standing hours · activity level · fit priority ·
+current-shoe age · return history.
 
-Never display a percentage. "82% confident" starts an argument no one can win.
+A recommendation still generates at LOW — it simply leans on the associate's
+judgment and says so. `evidence_detail` stores which signals agreed, which
+conflicted and which were absent, so the state is auditable rather than
+assertive.
+
+Elsewhere in the product this may be surfaced as *fit signal strength* or
+*recommendation consistency*. Any of those is honest. "Confidence" is not.
 
 ### Hard conflicts
 
@@ -111,8 +164,6 @@ Surfaced side by side for the associate to resolve — never silently averaged.
 | `wide` width vs `secure_narrow` heel | Flag as a **heel-to-forefoot mismatch**: fit forefoot, secure heel with lacing; may need a brand known for that last shape. |
 | `neutral` vs `stability` support (outward roll + inner wear) | Data disagreement — prompt to re-check the wear pattern. |
 | Customer priority `price` vs `max_support` need | Present the insole path as the lower-cost route to support. |
-
----
 
 ## 4. Language guardrails
 
@@ -421,9 +472,10 @@ Format for each: **Inputs** → **Profile output** · **Say** (associate, spoken
 | category | `work_support` | work_support 3 |
 | flags | `size_asymmetry`, `walk_test_required` | |
 
-**Confidence:** completeness 40/40, agreement 34/40, conflicts 0 → **74 → High**
-(borderline; the runner-up insole values are close, so the UI offers the
-arch-support insole as a secondary option rather than hiding it).
+**Evidence strength: HIGH** — all six primary signals present, `support_level`
+leads its runner-up by 7, `cushioning_level` by 4, no hard conflicts. The
+runner-up insole values are close, so the UI offers the arch-support insole as a
+secondary option rather than hiding it.
 
 **Talking points rendered:** R-16's sizing line first (it is the most immediately
 useful thing to say while holding the customer's foot), then R-21's shift line,

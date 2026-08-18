@@ -2,7 +2,7 @@
 
 **Product:** Stride Guide FitOS™ (store-side fitting interface, software-only v1)
 **Owner:** Founder
-**Status:** Draft for approval
+**Status:** Revision 2 — founder review applied ([00-revision-log](00-revision-log.md))
 **Horizon:** Pilot-ready in 7 days, hardware-ready in ~90 days
 
 ---
@@ -61,8 +61,12 @@ If a proposed feature answers none of these, it does not go in v1.
   one follow-up. No pipelines, no campaigns, no deal stages.
 - **Is not a form.** A form collects; this interprets. The output is a
   recommendation with reasoning, not a saved submission.
-- **Is not a medical device.** No diagnosis, no treatment, no clinical claims.
-  Retail-safe language is enforced structurally, not left to associate judgment.
+- **Intended use is retail footwear-fit guidance.** No diagnosis, treatment,
+  prevention or clinical claims — in the product, the report, generated text,
+  marketing or sales conversation. Retail-safe language is enforced structurally
+  rather than left to associate judgment. Regulatory posture is stated in
+  [09 §6](09-build-plan.md#regulatory-posture); note that human override is an
+  operational and explainability control, **not** a regulatory safe harbor.
 
 ## 3. Product name
 
@@ -118,9 +122,12 @@ more thorough than a normal shoe store, and did I leave with something.
 - **Loses with:** feeling diagnosed, feeling harvested for data, or a long wait while someone types.
 
 ### P5 — Regional / franchise ops manager (post-MVP)
-Manages 4–40 doors. Cares about adoption per store and per associate, and about
-standardizing fittings across a chain. **Explicitly out of scope for v1** — noted
-so v1 does not accidentally block it (store_id on every record does the job).
+Manages 4–40 doors. Cares about adoption per location and per associate, and
+about standardizing fittings across a chain. **Explicitly out of scope for v1** —
+noted so v1 does not accidentally block it. The
+`organization → location` tenancy in [05 §1](05-data-model.md#1-tenancy-organization--location)
+is what keeps that door open; the UI still says "store" until there is a customer
+who needs otherwise.
 
 ## 5. Scope
 
@@ -135,7 +142,7 @@ so v1 does not accidentally block it (store_id on every record does the job).
    risk flags, associate's own recommended levels.
 5. Deterministic recommendation engine (30 rules) producing a fit profile,
    category, support/cushioning levels, width/volume notes, insole opportunity,
-   talking points, confidence and rationale.
+   talking points, evidence strength and rationale.
 6. Products to consider / avoid, filtered from a curated shoe database.
 7. Customer fit report: on-screen, printable, emailable via link.
 8. Single follow-up scheduling with a reminder queue in-store.
@@ -155,7 +162,7 @@ See §9 "What not to build yet."
 | FR-03 | A fitting autosaves after every field change and is resumable after app close, tablet sleep, or network loss. | Must |
 | FR-04 | Consent must be explicitly recorded (who, when, text version) before contact details are stored. | Must |
 | FR-05 | The recommendation is computed locally and deterministically from intake + assessment, with no network dependency. | Must |
-| FR-06 | Every recommendation displays confidence and a plain-language rationale citing the inputs that drove it. | Must |
+| FR-06 | Every recommendation displays **evidence strength** (high/moderate/low, defined algorithmically — never a percentage) and a plain-language rationale citing the inputs that drove it. | Must |
 | FR-07 | The associate can override any recommended attribute; the override and optional reason are stored. | Must |
 | FR-08 | A fit report can be generated, printed, and sent by email link at the end of a fitting. | Must |
 | FR-09 | Every report includes the non-medical disclaimer, store identity and date. | Must |
@@ -177,28 +184,52 @@ See §9 "What not to build yet."
 | **Accessibility** | WCAG 2.2 AA: 4.5:1 text contrast, 44px minimum touch targets (56px preferred), full keyboard path for the laptop case, no color-only meaning. |
 | **Privacy** | Contact identity separated from fit data; scan/fit records reference a customer by ID. Exports exclude direct identifiers by default. |
 | **Legal** | No diagnostic or treatment claims anywhere in UI, report, or generated text. Consent stored per customer with text version and timestamp. SMS requires separate opt-in. |
-| **Portability** | No data model decision that blocks the pressure platform (see [09](09-build-plan.md#4-hardware-integration-plan)). |
+| **Portability** | No data model decision that blocks the pressure platform (see [09](09-build-plan.md#6-hardware-integration)). |
 
 ## 8. Success metrics
 
-**Pilot success (first 30 days, 2–4 stores).** These are the numbers that decide
-whether this is a product or a demo.
+Under three minutes is a **design constraint**, not the KPI. A blazing-fast
+workflow nobody values is still a failure, so the measurement runs in four
+layers.
 
-| Metric | Target | Why it matters |
+### Layer 1 — Workflow health
+
+| Metric | Target | Why |
 | --- | --- | --- |
-| Fittings completed per store per week | ≥ 25 | Proves it survives a real Saturday, not just a demo. |
-| Median time to complete | < 3:00 | The single most likely cause of abandonment. |
-| Completion rate (started → report) | ≥ 85% | Drop-off points tell you exactly which screen is too long. |
-| Associate adoption | ≥ 70% of on-shift associates use it weekly | One enthusiast is not adoption. |
-| Report send rate | ≥ 60% of completed fittings | Measures customer-perceived value, not just internal use. |
-| Insole attach rate on flagged fittings | ≥ 20% | The first hard revenue proof — a number Ray can multiply. |
-| Follow-up completion | ≥ 50% of due reminders actioned | Tests whether retention is real or theater. |
-| Override rate | 15–35% | **Both directions are bad.** Under 15% means associates are rubber-stamping; over 35% means the rules are wrong. |
+| Fitting completion rate (started → report) | **80–90%+** | The single clearest signal that the flow survives a real Saturday. Drop-off points name the screen that is too long. |
+| Median time to recommendation | < 3:00 | Measured, not estimated (`time_to_recommendation_ms`). |
+| Associate correction / error rate | Trend down | Fields re-edited after moving on — a proxy for a confusing screen. |
 
-**Deliberately not measured in v1:** return-rate reduction. It requires POS
-integration and a baseline the store probably cannot produce. Claiming it without
-data would poison the pilot. Collect the inputs (outcome + follow-up response)
-now, make the claim when there is evidence.
+### Layer 2 — Decision quality
+
+| Metric | Target | Why |
+| --- | --- | --- |
+| Recommendation acceptance rate | 65–85% | The complement of override. |
+| Override rate **with reason captured** | 100% of overrides carry a reason | An override without a reason is a lost lesson. |
+| Override direction concentration | No single attribute overridden >20% one way | Concentrated one-way overrides mean a mis-weighted rule, not a stubborn associate. |
+
+### Layer 3 — Commercial
+
+| Metric | Target | Why |
+| --- | --- | --- |
+| Footwear purchase rate on completed fittings | Baseline, then trend | The number the owner actually buys. |
+| Insole attach rate on flagged fittings | ≥ 20% | First hard revenue proof — a number Ray can multiply. |
+| Recommended vs purchased match | Baseline | Measures whether the recommendation influenced the sale at all. |
+| Report send rate | ≥ 60% | Customer-perceived value, not just internal use. |
+
+### Layer 4 — Durability
+
+| Metric | Target | Why |
+| --- | --- | --- |
+| Return / exchange outcome tied back to a fitting | Captured, not yet targeted | Requires the partner's return workflow (Phase 0 fact #4). |
+| Repeat visit rate · time to second visit | Baseline | The retention thesis, measured rather than asserted. |
+| Follow-up completion | ≥ 50% of due reminders actioned | Tests whether retention is real or theater. |
+| Associate adoption | ≥ 70% of on-shift staff weekly | One enthusiast is not adoption. |
+
+**Deliberately not claimed in v1:** return-rate *reduction*. It needs a baseline
+the retailer probably cannot produce and POS data they may not share. Capture the
+inputs now — `outcome`, `returned`, `return_reason`, follow-up response — and
+make the claim when there is evidence. Claiming it early would poison the pilot.
 
 ## 9. What NOT to build yet
 
@@ -234,7 +265,7 @@ with a real reason to wait.
 | Store Wi-Fi drops mid-fitting | Medium | Local draft persistence from day one. |
 | Shoe database goes stale | Medium | Start with the ~120 models actually on the pilot walls; the value is fit characteristics, which change slowly, not stock levels. |
 | Pilot store loves it and asks for POS integration immediately | Medium | Have the "not yet, here's the CSV path" answer ready; treat as validation, not a requirement. |
-| Hardware arrives and forces a data model rewrite | Medium | Assessment schema is designed as the sensor schema from day one ([09](09-build-plan.md#4-hardware-integration-plan)). |
+| Hardware arrives and forces a data model rewrite | Medium | Assessment schema is designed as the sensor schema from day one ([09](09-build-plan.md#6-hardware-integration)). |
 
 ## 11. Pilot commercial frame (light touch)
 

@@ -15,9 +15,15 @@ These are non-negotiable and apply to every screen.
 2. **One question per row, one decision per glance.** No multi-column forms. A
    standing associate scans vertically.
 3. **Nothing is mandatory except identity and consent.** Any field can be
-   skipped; the recommendation degrades gracefully and says so via confidence.
+   skipped; the recommendation degrades gracefully and says so via evidence
+   strength.
 4. **Autosave always, submit never.** There is no Save button in the fitting
-   flow. Every tap persists. The word "Save" appears nowhere.
+   flow and the word "Save" appears nowhere — but "every tap writes to the
+   database" is the wrong implementation. The chain is
+   `local optimistic state → debounced write (500–1500ms by field type) → server
+   ack → local draft backup`. The UI updates instantly; the network does not
+   thrash. A session is `draft` until intake is meaningfully complete, and an
+   accidentally opened screen never becomes a historical fitting.
 5. **Forward motion is bottom-right.** The primary action sits in the thumb arc
    of a right-handed person holding a tablet at chest height. Back is top-left.
 6. **No modal dialogs in the fitting path.** Modals steal focus while a human is
@@ -58,7 +64,7 @@ These are non-negotiable and apply to every screen.
                                    ▼
               ┌──────────────────────────────────────────────────┐
               │  5. RECOMMENDATION  — profile, levels, products, │
-              │     talking points, confidence, why              │
+              │     talking points, evidence strength, why      │
               │     ▸ override any attribute                     │
               └────────────────────┬─────────────────────────────┘
                                    ▼
@@ -147,7 +153,7 @@ reason to glance at it. Deliberately **not** an analytics product.
 | Element | Behavior |
 | --- | --- |
 | **New Fitting** | Largest target on screen (min 240×120px). One tap → Screen 2 with the phone field focused. |
-| **Search customer** | Type-ahead on name or phone; results appear inline after 2 characters. Tapping a result opens the customer profile, not a new fitting. |
+| **Search customer** | Type-ahead on **name** after 2 characters. **Phone requires the complete number** — lookup runs against a keyed hash, so partial matching is impossible by design ([05 §6](05-data-model.md#6-phone-identity--why-hashed-and-what-it-costs)). Tapping a result opens the customer profile, not a new fitting. |
 | **Recent fittings** | Last 8 today. Tap = open that fitting (resume if incomplete, view if complete). An incomplete fitting shows a subtle "in progress" marker — this is how a dropped fitting gets recovered. |
 | **Today stats** | Exactly three: fittings, reports sent, follow-ups due. No charts, no trends, no comparisons in v1. |
 | **Follow-ups due** | Max 5 shown, each with a one-tap Done and a swipe to snooze. Overdue items sort first. |
@@ -179,7 +185,7 @@ opposite of most CRM UIs and the reason duplicates get avoided.
 
 | Field | Type | Control | Required | Validation / notes |
 | --- | --- | --- | --- | --- |
-| phone | string | Numeric keypad, auto-format | Yes* | **Natural key for dedupe.** Exact match blocks creation and offers the existing record. |
+| phone | string | Numeric keypad, auto-format | Yes* | **Dedupe key, stored as a keyed hash** (HMAC over the E.164 form) plus last-4 for display. Exact full-number match blocks creation and offers the existing record. **No partial search** — the associate types the whole number or searches by name. The plaintext number is retained, encrypted, only where consent to contact exists. |
 | first_name | string | Text | Yes | |
 | last_name | string | Text | Yes | |
 | email | string | Text, `type=email` | No | Skip button adjacent. Required only if sending the report by email — prompted at that moment instead, which is where the customer sees the value. |
@@ -188,20 +194,35 @@ opposite of most CRM UIs and the reason duplicates get avoided.
 | returning_customer | bool | Auto-derived | — | Derived from record match; never asked. Manual override for "this is a new person with a shared phone." |
 | consent_fit_data | bool | Checkbox + inline text | **Yes** | Blocks progress. Stores text version + timestamp + associate. |
 | consent_marketing | bool | Checkbox | No | Separate and off by default. Never bundled with the above. |
-| associate_id | reference | Auto from sign-in | Yes | Not a typed field. |
+| user_id | reference | Auto from sign-in | Yes | Not a typed field. Attribution, not a security boundary. |
 
 \* Phone is required to create a *saved* record. Offer **"Fitting without saving
 contact"** — an anonymous fitting that produces a printed report and no stored
 identity. Some customers will refuse contact details, and the associate must not
 be stuck; this converts a dead end into a printed report and a data point.
 
-### Consent copy (v1, verbatim)
+### Consent — five distinct records, never one checkbox
+
+A single `consent = true` flag cannot answer "what did they agree to, when,
+where, under which policy version, and who took it." Each type is captured and
+stored separately ([05 §7](05-data-model.md#7-consent_record)), with policy
+version, capture method, location, timestamp and capturing user.
+
+| Type | Asked | Required to proceed |
+| --- | --- | --- |
+| `fit_history_storage` | On the customer screen | **Yes** (or take an anonymous fitting) |
+| `receive_report` | At the moment the report is sent | Only to send it |
+| `privacy_ack` | Bundled with the first, recorded separately | Yes |
+| `marketing_email` | Separate checkbox, default off | No |
+| `marketing_sms` | Never bundled; own opt-in, own wording, reserved | No |
+
+**Storage consent, verbatim:**
 
 > I agree that **[Store Name]** may store my fitting information to help with
 > future fittings. My information is not sold. I can ask for it to be deleted at
 > any time.
 
-Marketing checkbox, separate:
+**Marketing checkbox, separate and off by default:**
 
 > Send me a copy of my fit report and occasional fitting reminders.
 
@@ -261,7 +282,7 @@ associate decides the product is worth using.
 ## 7. Screen 4 — Manual Fit Assessment
 
 **Purpose:** record what the associate observes. **This schema is the future
-sensor schema** — see [09](09-build-plan.md#4-hardware-integration-plan). Every
+sensor schema** — see [09](09-build-plan.md#6-hardware-integration). Every
 field carries a hidden `source` of `manual` today and `sensor` later.
 
 **Design:** two columns — left foot / right foot for the dimensional fields, one
@@ -312,7 +333,7 @@ signal the product collects.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│  M. Alvarez · Work boots · 8+ hrs standing        Confidence: High ●●● │
+│  M. Alvarez · Work boots · 8+ hrs standing     Evidence: Strong ●●● │
 ├───────────────────────────────┬────────────────────────────────────────┤
 │  FIT PROFILE                  │  WHAT TO SAY                           │
 │  Size    10.5 L / 11 R        │  "Your right foot measures a half size │
@@ -345,7 +366,7 @@ signal the product collects.
 
 | Block | Rule |
 | --- | --- |
-| **Confidence** | Three states only: High / Moderate / Low, with a one-line reason (*"Low — arch type and wear pattern unknown"*). Never a percentage; false precision invites arguments. |
+| **Evidence strength** | Three states only — Strong / Moderate / Limited — each with a one-line reason (*"Limited — arch type and wear pattern unknown"*). Never a percentage: the system is not calibrated against outcomes, and implying statistical certainty about someone's body is both untrue and unwise. Definition in [03 §3](03-recommendation-engine.md#3-evidence-strength-not-confidence). |
 | **What to say** | 2–4 talking points, plain spoken English, second person, no jargon. These are quotes an associate can read aloud verbatim without sounding like a robot. |
 | **Why** | Collapsed by default, expands to the specific inputs that fired. Must name the input, not the rule ID. |
 | **Consider** | Max 3 products, filtered by store inventory when available. Each shows one reason phrase, not a spec dump. |
@@ -379,7 +400,7 @@ Ten seconds, two taps, dismissible.
 | outcome | Chips: Purchased · Purchased something else · Thinking about it · No purchase · Ordered | Feeds the outcome dataset that eventually trains everything. |
 | purchased_item | Type-ahead | Only if outcome = purchased. |
 | insole_attached | Toggle | The revenue metric. |
-| follow_up | Chips: 7 days · 30 days · 90 days · None | Default suggested by purpose (running → 30, work → 90). |
+| follow_up | Chips: 7 days · 30 days · 90 days · None | Default suggested by purpose (running → 30, work → 90). Writes `follow_up_reason`, `follow_up_due_at`, `follow_up_status` — the full data model, deliberately paired with a **minimal UI**: a due list and a Done button. There are already 10,000 CRMs; the differentiator is fitting intelligence and longitudinal data, so week-one hours do not go here. |
 
 ## 11. Global — Pilot feedback sheet
 
@@ -404,8 +425,13 @@ answers *"What do we know about this customer?"* and the one that converts P2.
 - Header: name, visits, last visit, current fit profile at a glance.
 - **Timeline** of fittings: date, purpose, recommendation, what they bought,
   outcome, follow-up status.
-- **What changed** between the two most recent fittings, stated in plain language
-  (*"Right foot now measured a half size larger · Now reports heel discomfort"*).
+- **What changed** between the two most recent fittings, read from the stored
+  `assessment_delta` record ([05 §14](05-data-model.md#14-assessment_delta--what-changed-since-last-visit))
+  — structured data computed once at completion, not a visual diff recalculated
+  at render time. Shown in plain language (*"Right foot now measured a half size
+  larger · Now reports heel discomfort"*), and queryable later for cohort
+  analysis. This is the screen longitudinal data exists to produce, and it gets
+  materially stronger once scans feed it.
 - Actions: Start new fitting (prefilled) · Resend last report · Add note.
 
 ## 13. States, errors and edge cases
@@ -418,7 +444,7 @@ answers *"What do we know about this customer?"* and the one that converts P2.
 | Under-18 customer | Guardian consent copy replaces the standard text; report addresses the guardian. |
 | Two customers share a phone | Match card offers "This is someone else" → creates a linked record. |
 | No shoe inventory loaded | "Consider" block hides; recommendation shows characteristics only. The system must be useful with an empty catalog. |
-| Conflicting rules fire | Both surfaced, confidence drops to Moderate, associate picks. Never silently averaged. |
+| Conflicting rules fire | Both surfaced, evidence strength drops to Moderate, associate picks. Never silently averaged. |
 | Red-flag inputs (severe/persistent pain, numbness, diabetes-related concern) | Recommendation still generates; a referral note appears for the associate; the report shows the standard disclaimer with a "worth discussing with a healthcare professional" line. No diagnosis, no alarm language. |
 
 ---

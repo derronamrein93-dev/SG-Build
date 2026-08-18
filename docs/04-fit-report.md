@@ -41,6 +41,24 @@ Build it with more care than any internal screen.
 **Levels are shown as filled dots, not numbers.** `Support ●●●○` communicates
 instantly and avoids implying measurement precision the system does not have.
 
+## 2b. The report is a record, not a file
+
+The PDF or printed page is a *rendering*. The durable object is a `report` row
+([05 §17](05-data-model.md#17-report-and-report_view)) carrying
+`report_version`, `template_version`, a `content_snapshot` of exactly what was
+shown, and lifecycle timestamps: `generated_at`, `emailed_at`, `printed_at`,
+plus a `report_view` log.
+
+Access resolves **customer → fitting_session → report_version**, never
+"the file." That one decision keeps a future MyStrideID customer-history portal
+possible — where a customer signs in and sees every fitting they have ever had —
+without redesigning reports or renegotiating anything. Building the portal is not
+in scope; making it impossible would be careless.
+
+Those timestamps are also the analytics that matter: generated-but-never-sent is
+a UX problem, sent-but-never-viewed is a value problem, and the two demand
+different fixes.
+
 ## 3. Delivery
 
 | Channel | v1 | Notes |
@@ -52,10 +70,13 @@ instantly and avoids implying measurement precision the system does not have.
 | QR code | ⏳ v1.1 | Two hours of work later; the email link covers it now. |
 | SMS | ❌ | Consent and carrier registration overhead before the value is proven. See [01 §9](01-prd.md#9-what-not-to-build-yet). |
 
-**Link privacy:** report URLs use an unguessable token, expire after 90 days, and
-contain no personal identifiers in the path. Anyone with the link can view it —
-acceptable for this content, and the trade-off is documented rather than
-accidental.
+**Link privacy:** report URLs carry an unguessable token, stored **hashed** so a
+database read cannot mint a working link; they expire after 90 days, are
+revocable, and contain no personal identifiers in the path. IDs are not
+sequential and cannot be walked to another customer's report — that is one of the
+six tenant-isolation tests in
+[09 §4](09-build-plan.md#day-1--tenancy-spine). Anyone holding the link can view
+it, which is an accepted trade for this content rather than an oversight.
 
 ## 4. Disclaimer (fixed text, every report)
 
@@ -170,7 +191,7 @@ grey, never collapsed behind a link.
 
 | Situation | Report behavior |
 | --- | --- |
-| Low confidence | *Why* becomes: "We based this on what you told us and how the shoes felt today. Comfort during wear is the best guide." No fake certainty. |
+| Limited evidence strength | *Why* becomes: "We based this on what you told us and how the shoes felt today. Comfort during wear is the best guide." No fake certainty. |
 | No purchase | *What we fitted you in* is replaced by *What to look for*, listing the profile characteristics so the customer can shop the recommendation elsewhere. **Include this deliberately** — it builds trust, and they bring the sheet back. |
 | No insole recommended | Row omitted entirely, not shown as "None." |
 | Anonymous fitting | Print only, no name block, no follow-up, no report ID lookup. |
