@@ -106,24 +106,19 @@ sensor derivation converge on Canonical Fit Features, and everything below that
 line is written once and never rewritten when hardware arrives. Everything above
 it can change source without disturbing anything below.
 
-### Two places the schema currently differs from the diagram
+### The map is the schema
 
-Both are deliberate and both are reversible — flagging them rather than silently
-resolving them either way.
+Both places where the schema previously differed from this drawing have been
+changed to match it:
 
-1. **Customer hangs off Organization, not Location.** The diagram puts Customer
-   under Location. The schema puts it under Organization with a
-   `customer_visibility` policy field (`organization` | `location`), so a chain
-   can decide whether a customer fitted at one door is recognized at another.
-   Setting that field to `location` makes the schema behave exactly as drawn.
-   This is [open question 11](09-build-plan.md#7-open-questions).
-2. **Associate is Organization-level with location assignment.** The diagram puts
-   Associate under Location. The schema has `user` on the organization with a
-   `user_location` join, because staff who cover two doors are common and the
-   alternative is duplicate people records. Functionally identical for a
-   single-location retailer.
+- **Customer is owned by a Location.** `organization_id` rides along for RLS and
+  rollups, and `organization.customer_visibility` now defaults to `location` —
+  chain-wide recognition is opt-in rather than assumed.
+- **Associate is owned by a Location.** `user_location` remains only as an
+  exception for staff who genuinely cover two doors; it grants access without
+  changing ownership.
 
-Say the word if either should match the drawing literally instead.
+Details in [05 §1](05-data-model.md#1-tenancy-organization--location).
 
 ## The load-bearing decisions
 

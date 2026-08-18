@@ -7,7 +7,7 @@ implemented; two are implemented with a caveat worth reading.
 | --- | --- | --- | --- |
 | 1 | Phase 0 gate too rigid | **Accepted.** Gate is now *one committed design partner OR two retailers willing to run structured discovery/usability testing*. Eight operational discovery facts added and modeled as real `location` fields. | [09 §2](09-build-plan.md#2-phase-0--discovery), [05 §3](05-data-model.md#3-location) |
 | 2 | WordPress requirement ignored | **Accepted.** Topology stated explicitly: MyStrideID.com = WordPress CMS, app.MyStrideID.com = FitOS, Supabase = backend, thin read-only bridge plugin. "WordPress is the presentation layer, not the application database or core runtime." | [09 §3](09-build-plan.md#3-platform-topology--wordpress-stays-in-its-lane), [06 §0](06-tech-and-data-strategy.md#0-platform-topology--where-wordpress-fits) |
-| 3 | `store` → `organization`/`location` | **Accepted, and it propagated widely.** Tenancy is now organization → location → user → customer → fitting_session → assessment → recommendation → outcome. UI still says "store." Customer belongs to the organization with a `customer_visibility` policy field. | [05 §1–§5](05-data-model.md#1-tenancy-organization--location) |
+| 3 | `store` → `organization`/`location` | **Accepted, and it propagated widely.** Tenancy is now organization → location → {user, customer} → fitting_session → assessment → recommendation → outcome, matching the approved [system map](README.md#system-map). UI still says "store." Customer and staff are location-owned; `organization_id` rides along for RLS and rollups; `customer_visibility` defaults to `location`. | [05 §1–§5](05-data-model.md#1-tenancy-organization--location) |
 | 4 | RLS test too shallow | **Accepted.** Six-test isolation suite: read, update, enumerate, report-URL walking, storage objects, service-role separation. Day 1 gate. | [09 §4](09-build-plan.md#day-1--tenancy-spine) |
 | 5 | Phone dedupe needs hashing | **Accepted.** `phone_lookup_hash` = HMAC-SHA256(server key, E.164), key outside the database, `phone_key_version` for rotation; `phone_encrypted` only where contact consent exists; `phone_last4` for display. Explicitly not bare SHA-256. **Surfaced consequence:** hashed lookup is exact-match only, so phone type-ahead is gone and the UX spec changed accordingly. | [05 §6](05-data-model.md#6-phone-identity--why-hashed-and-what-it-costs), [02 §5](02-ux-spec.md#5-screen-2--customer-find-or-create) |
 | 6 | Consent underspecified | **Accepted.** Five distinct types (fit history, receive report, privacy ack, marketing email, marketing SMS), each with policy version, consent-text version, method, location, timestamp, capturing user. Revocation appends, never updates. | [05 §7](05-data-model.md#7-consent_record), [02 §5](02-ux-spec.md#5-screen-2--customer-find-or-create) |
@@ -44,18 +44,23 @@ hashes from `phone_encrypted`, which only exists where contact consent was given
 — rows without it get re-keyed at the customer's next visit. Both are acceptable;
 neither should be discovered during the pilot.
 
-**On mark 3 (organization/location).** Adopted in full, including `customer`
-hanging off `organization` rather than `location`. That choice pre-supposes a
-chain wants shared customers across its own doors, which is probably right but is
-open question 11 — so it is a policy field (`customer_visibility`), not a
-hard-coded assumption.
+**On mark 3 (organization/location).** Adopted in full. The first draft hung
+`customer` off `organization`; the approved system map puts Customer and
+Associate under Location, and the schema now matches. `organization_id` is
+carried on both for RLS and rollups, `customer_visibility` defaults to
+`location`, and cross-location recognition is opt-in. `user_location` survives
+only as an exception for staff covering two doors.
 
 ## Still open, needing a decision from you
 
-1. **Open question 13 — cross-retailer customer identity via MyStrideID.** If the
-   answer is yes, `customer` should become a first-class entity above the
-   organization, with its own consent, portability and portal, and that shape is
-   cheap now and expensive later.
+1. **Open question 13 — cross-retailer customer identity via MyStrideID.** Now
+   the sharpest question on the board. The schema just moved customer ownership
+   *down* to the location, which is the right default for a retailer-owned
+   record. A cross-retailer MyStrideID identity pushes in the opposite direction:
+   a customer entity that sits *above* every organization, with its own consent,
+   portability and portal, linked to — not owned by — each retailer's customer
+   record. Both can coexist, but only if the link table is designed before there
+   is data on either side of it.
 2. **Open question 10 — who owns the fitting record.** Belongs in the design
    partner agreement before the first real fitting.
 3. **Domain conflict.** The marketing landing page in this repo declares

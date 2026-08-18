@@ -384,9 +384,12 @@ advice before any claim shifts toward health outcomes.
     defined combination? This belongs in the design-partner agreement before the
     first real fitting, not after. `data_owner_terms_version` records which
     answer applied.
-11. **What can one location see across a multi-location organization?**
-    `customer_visibility` defaults to org-wide; confirm that is what a chain
-    actually wants and what a customer would expect.
+11. **When should a chain opt into org-wide customer visibility?**
+    *Settled by the approved system map:* customers are owned by a location and
+    `customer_visibility` defaults to `location`. The remaining question is
+    commercial, not structural — at what point does a multi-location retailer
+    want a customer fitted at one door recognized at another, and does the
+    customer's consent text need to say so before that switch is flipped?
 12. **What happens when two different retailers fit the same consumer?** Today:
     two unlinked customer records, by design. Linking them is a product and
     consent decision, not an accident to stumble into.

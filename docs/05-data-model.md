@@ -41,11 +41,11 @@ expensive to retrofit later.
 ```
   organization ──┬── location ──┬── user (staff)
                  │              ├── device_installation ──► device
-                 │              └── location_inventory ──► product_variant ──► product_model
-                 │
-                 ├── customer ── consent_record
-                 │      │
-                 │      └──► fitting_session ──┬── assessment            (1:1, manual)
+                 │              ├── location_inventory ──► product_variant ──► product_model
+                 │              │
+                 │              └── customer ── consent_record
+                 │                      │
+                 │                      └──► fitting_session ──┬── assessment    (1:1, manual)
                  │                             ├── scan                  (1:n, hardware, immutable)
                  │                             │     └── scan_derivation (1:n, re-runnable)
                  │                             ├── fitting_feature       (1:n, canonical + provenance)
@@ -58,12 +58,19 @@ expensive to retrofit later.
                  └── pilot_feedback
 ```
 
-**Customer belongs to the organization, not the location** — a chain expects a
-customer fitted in one store to be recognized in another. Whether that sharing is
-*permitted* is a policy field, not a schema decision
-(`organization.customer_visibility`), which keeps the open question in
-[09 §5](09-build-plan.md#7-open-questions) answerable without a
-migration.
+**Customer and staff are owned by a location**, per the approved
+[system map](README.md#system-map). `organization_id` is carried on both as a
+denormalized column — it drives RLS and org-level rollups, and it is what makes
+sharing *possible* — but the owning row is the location.
+
+Chain-wide recognition is therefore **opt-in, not the default**:
+`organization.customer_visibility` defaults to `location`, and a chain that wants
+a customer fitted at one door recognized at another sets it to `organization`.
+That ordering is the safer one — a retailer who has not thought about
+cross-location customer data does not accidentally get it, and a customer's
+expectation ("I gave this to *this* shop") is the default behavior. Open
+question 11 in [09 §7](09-build-plan.md#7-open-questions) is now a question about
+when to opt in, not about what the schema does.
 
 ---
 
@@ -75,7 +82,7 @@ migration.
 | legal_name | text | | |
 | org_type | enum | ✅ | `independent` · `chain` · `franchise` · `clinic` · `orthotics` · `enterprise` · `events` |
 | plan | enum | ✅ | `pilot` · `design_partner` · `active` · `paused` |
-| customer_visibility | enum | ✅ | `organization` (default) · `location` — who may see a customer's fit history inside the org |
+| customer_visibility | enum | ✅ | `location` (**default**) · `organization` — whether a customer's fit history is visible at sibling locations. Opt-in, not opt-out |
 | data_owner_terms_version | text | ✅ | Which data-rights agreement this org signed (see open question 10) |
 | settings | jsonb | | Org-wide defaults |
 
@@ -104,8 +111,8 @@ same entity with a different role.
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
-| organization_id | uuid fk | ✅ | |
-| default_location_id | uuid fk | | |
+| **location_id** | uuid fk | ✅ | **Owning location** — staff belong to a door |
+| organization_id | uuid fk | ✅ | Denormalized for RLS and org rollups |
 | first_name | text | ✅ | Printed on report ("Fitted by Denise") |
 | last_name | text | | |
 | role | enum | ✅ | `associate` · `manager` · `owner` · `org_admin` |
@@ -113,7 +120,11 @@ same entity with a different role.
 | auth_user_id | uuid | | Null for floor staff on a shared tablet; set for real logins |
 | active | bool | ✅ | Deactivate, never delete — attribution must survive |
 
-`user_location` (join table) handles staff who work across several locations.
+`user_location` (join table) remains for the **exception**: someone who genuinely
+covers two doors. It grants additional locations; it does not change ownership.
+Without it, a shared employee needs duplicate records and their attribution
+splits in two — which is why the exception exists even though the default is
+location-owned.
 
 ## 5. `customer`
 
@@ -121,8 +132,8 @@ Identity only. Fit data lives on `fitting_session` and its children.
 
 | Field | Type | Req | Notes |
 | --- | --- | --- | --- |
-| organization_id | uuid fk | ✅ | |
-| origin_location_id | uuid fk | | Where first fitted |
+| **location_id** | uuid fk | ✅ | **Owning location** — where the customer was created |
+| organization_id | uuid fk | ✅ | Denormalized for RLS and org rollups; enables opt-in sharing |
 | first_name / last_name | text | ✅* | |
 | **phone_lookup_hash** | bytea | | **HMAC-SHA256(server_key, E.164).** The only indexed phone representation. See §6 |
 | **phone_encrypted** | bytea | | Reversible, envelope-encrypted. Written **only** when consent to contact exists |
@@ -139,7 +150,13 @@ Identity only. Fit data lives on `fitting_session` and its children.
 
 \* Not required when `anonymous = true`.
 
-**Index:** `unique (organization_id, phone_lookup_hash) where phone_lookup_hash is not null and deleted_at is null`
+**Index:** `unique (location_id, phone_lookup_hash) where phone_lookup_hash is not null and deleted_at is null`
+
+Dedupe is scoped to the owning location, matching ownership. When
+`customer_visibility = 'organization'`, lookup widens to the organization and a
+match at a sibling location offers the existing record instead of creating a
+second one — the one place the policy field changes behavior an associate can
+see.
 
 ## 6. Phone identity — why hashed, and what it costs
 
