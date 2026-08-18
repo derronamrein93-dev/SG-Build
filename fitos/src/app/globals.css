@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-surface-base text-ink font-sans; font-size: 16px; }
+  /* 56px is the standing-up-while-talking floor, not the 44px a11y floor. */
+  button, [role="button"] { min-height: 56px; }
+  :focus-visible { outline: 2px solid #0F5C5B; outline-offset: 2px; }
+}
+
+@layer components {
+  .chip {
+    @apply min-h-touch px-4 rounded-control border border-line-strong bg-surface-raised
+           text-ink text-[15px] inline-flex items-center gap-2 transition-colors;
+  }
+  /* Selection never depends on colour alone — the check glyph carries it too. */
+  .chip[aria-pressed="true"] { @apply bg-accent-wash border-accent text-accent font-medium; }
+  .chip[aria-pressed="true"]::before { content: "✓"; @apply text-accent; }
+  .btn-primary {
+    @apply min-h-touch px-6 rounded-control bg-accent text-white font-medium
+           inline-flex items-center justify-center transition-colors hover:bg-accent-hover;
+  }
+  .btn-ghost {
+    @apply min-h-touch px-5 rounded-control border border-line-strong bg-surface-raised
+           text-ink inline-flex items-center justify-center hover:bg-surface-sunken;
+  }
+  .card { @apply bg-surface-raised border border-line rounded-card p-6; }
+  .label { @apply text-[14px] font-medium text-ink-secondary; }
+  .overline { @apply text-[12px] font-semibold tracking-[0.1em] uppercase text-ink-muted; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}

@@ -1,0 +1,272 @@
+{
+  "rule_set_version": "rules-1.0.0",
+  "feature_schema_version": "feature-1.0.0",
+  "rules": [
+    {
+      "id": "R-01", "name": "Low arch + arch discomfort + inner wear",
+      "when": { "all": [{ "field": "arch_type", "in": ["low"] }, { "field": "discomfort_area", "includes": "arch" }],
+                "any": [{ "field": "wear_pattern", "in": ["inner_edge"] }, { "field": "pronation_tendency", "in": ["mild_inward", "strong_inward"] }] },
+      "then": { "support_level": { "stability": 3 }, "cushioning_level": { "moderate": 1 }, "insole": { "arch_support": 3 } },
+      "say": "Your arch sits lower, and the wear on your current shoe backs that up. A shoe with a firmer platform under the arch usually feels steadier late in the day.",
+      "report": "Your fitting showed a lower arch with some inward wear. We recommended a supportive shoe and an arch-support insole for added comfort.",
+      "upsell": "arch_support_insole"
+    },
+    {
+      "id": "R-02", "name": "Low arch, no discomfort",
+      "when": { "all": [{ "field": "arch_type", "in": ["low"] }, { "field": "discomfort_area", "includes": "none" }] },
+      "then": { "support_level": { "light_stability": 2 }, "cushioning_level": { "moderate": 1 } },
+      "say": "No complaints today — we'll keep a little structure under the arch so it stays that way, without over-correcting anything.",
+      "report": "A lower arch with no current discomfort. We suggested a shoe with light built-in support.",
+      "guard": "Do not manufacture a problem. Comfort framing only."
+    },
+    {
+      "id": "R-03", "name": "High arch + impact discomfort",
+      "when": { "all": [{ "field": "arch_type", "in": ["high"] }],
+                "any": [{ "field": "discomfort_area", "includes_any": ["ball_of_foot", "heel"] }, { "field": "current_shoe_problem", "includes": "not_enough_cushion" }] },
+      "then": { "support_level": { "neutral": 3, "max_support": -2 }, "cushioning_level": { "plush": 3 }, "insole": { "cushion": 2 } },
+      "flags": ["walk_test_required"],
+      "say": "Higher arches tend to spread impact across less of the foot, so cushioning does more work for you than structure does.",
+      "report": "Your fitting showed a higher arch. We recommended a neutral, well-cushioned shoe with a flexible feel.",
+      "upsell": "cushioning_insole"
+    },
+    {
+      "id": "R-04", "name": "High arch + outer-edge wear",
+      "when": { "all": [{ "field": "arch_type", "in": ["high"] }],
+                "any": [{ "field": "wear_pattern", "in": ["outer_edge"] }, { "field": "pronation_tendency", "in": ["outward"] }] },
+      "then": { "support_level": { "neutral": 3, "max_support": -2 }, "cushioning_level": { "plush": 2 }, "insole": { "heel_cup": 2 } },
+      "say": "Your weight is riding along the outside edge. Extra stability posts would push you further that way — cushioning and a well-shaped heel are the better answer.",
+      "report": "Your wear pattern showed more contact along the outer edge. We recommended a cushioned, neutral shoe.",
+      "upsell": "cushioned_insole"
+    },
+    {
+      "id": "R-05", "name": "Strong inward roll + knee or ankle discomfort",
+      "when": { "all": [{ "field": "pronation_tendency", "in": ["strong_inward"] }, { "field": "discomfort_area", "includes_any": ["knee", "ankle"] }] },
+      "then": { "support_level": { "max_support": 3 }, "category": { "running_stability": 2 }, "insole": { "arch_support": 2 } },
+      "flags": ["gait_review", "referral_suggested"],
+      "say": "There's a noticeable inward roll. A stability shoe gives that a firmer base — and if the knee keeps bothering you, that's worth a conversation with a professional.",
+      "report": "We fitted you in a shoe with added support based on how your foot loads. Comfort should be your guide as you break it in.",
+      "guard": "No causal claim between shoe and knee."
+    },
+    {
+      "id": "R-06", "name": "Heel discomfort + 8+ hours standing",
+      "when": { "all": [{ "field": "discomfort_area", "includes": "heel" }, { "field": "standing_hours", "in": ["8_plus"] }] },
+      "then": { "support_level": { "stability": 2 }, "cushioning_level": { "plush": 3 }, "insole": { "heel_cup": 3, "anti_fatigue": 2 }, "heel_fit": { "structured": 2 } },
+      "say": "Eight-plus hours is a lot of load on the heel. We want cushioning that lasts the shift and a heel that holds you steady, not just soft foam that bottoms out by two o'clock.",
+      "report": "Long hours on your feet with heel discomfort. We recommended a cushioned, supportive shoe and a heel-comfort insole.",
+      "upsell": "anti_fatigue_insole"
+    },
+    {
+      "id": "R-07", "name": "Heel discomfort worst on first steps",
+      "when": { "all": [{ "field": "discomfort_area", "includes": "heel" }, { "field": "discomfort_timing", "in": ["first_steps_morning"] }] },
+      "then": { "support_level": { "stability": 2 }, "cushioning_level": { "plush": 2 }, "insole": { "arch_support": 3, "heel_cup": 2 }, "heel_fit": { "structured": 3 } },
+      "flags": ["referral_suggested"],
+      "say": "That first-thing-in-the-morning pattern is common. Structured heel support and arch support tend to feel better through the day — and since it's been ongoing, it's worth mentioning to a healthcare professional.",
+      "report": "You mentioned heel discomfort in the morning. We recommended a supportive shoe with a structured heel and an arch-support insole for comfort.",
+      "guard": "Never name a condition."
+    },
+    {
+      "id": "R-08", "name": "Forefoot discomfort + wide foot",
+      "when": { "all": [{ "field": "discomfort_area", "includes": "ball_of_foot" }],
+                "any": [{ "field": "width", "in": ["wide", "extra_wide"] }, { "field": "foot_shape", "includes": "wide" }] },
+      "then": { "width": { "wide": 3 }, "toe_box": { "wide_round": 3 }, "cushioning_level": { "plush": 2 }, "insole": { "metatarsal": 3 } },
+      "say": "The ball of your foot needs room to spread out — a wider toe box plus cushioning right under that area takes the pressure off.",
+      "report": "Your fitting showed a wider forefoot with discomfort at the ball of the foot. We recommended a wider toe box and forefoot cushioning.",
+      "upsell": "metatarsal_insole"
+    },
+    {
+      "id": "R-09", "name": "Toe discomfort + tight current shoe",
+      "when": { "all": [{ "field": "discomfort_area", "includes": "toes" }],
+                "any": [{ "field": "current_shoe_problem", "includes": "too_tight" }, { "field": "toe_box_issue", "includes_any": ["length_tight", "width_tight", "depth_tight"] }] },
+      "then": { "toe_box": { "roomy": 3 }, "volume": { "high": 2 } },
+      "flags": ["size_up_check", "walk_test_required"],
+      "say": "Let's check length and width before anything else — a lot of toe discomfort is simply half a size or one width away. You want about a thumb's width in front of the longest toe.",
+      "report": "Your current shoes were fitting tight through the toes. We checked sizing and recommended a roomier toe box."
+    },
+    {
+      "id": "R-10", "name": "Ankle instability",
+      "when": { "any": [{ "field": "balance_concern", "in": ["leans_inward", "leans_outward", "unsteady"] }, { "field": "discomfort_area", "includes": "ankle" }] },
+      "then": { "heel_fit": { "structured": 3 }, "support_level": { "stability": 2 } },
+      "flags": ["walk_test_required"],
+      "say": "A firmer heel counter — this back part here — makes a real difference in how steady a shoe feels. Squeeze it and you'll feel the difference between these two.",
+      "report": "We recommended a shoe with a structured heel for a more secure, stable feel.",
+      "guard": "No balance or fall-risk claims."
+    },
+    {
+      "id": "R-11", "name": "Knee, hip or back discomfort + active",
+      "when": { "all": [{ "field": "discomfort_area", "includes_any": ["knee", "hip_back"] }, { "field": "activity_level", "in": ["active", "very_active"] }] },
+      "then": { "cushioning_level": { "plush": 3 }, "support_level": { "stability": 2 } },
+      "flags": ["gait_review", "referral_suggested", "rotation_guidance"],
+      "say": "More shock absorption is a reasonable thing to try. I'd also rotate between two pairs if you're out most days. If it persists, it's worth having someone take a proper look.",
+      "report": "We focused on shock absorption and support for your activity level.",
+      "guard": "No claim that footwear resolves knee, hip or back discomfort."
+    },
+    {
+      "id": "R-12", "name": "Blisters or rubbing",
+      "when": { "all": [{ "field": "current_shoe_problem", "includes": "rubs_blisters" }] },
+      "then": { "heel_fit": { "secure_narrow": 2 } },
+      "flags": ["size_up_check", "lacing_guidance", "walk_test_required"],
+      "say": "Rubbing is almost always movement — either the shoe is a touch long, or the heel isn't locked in. Let me show you a heel-lock lacing that fixes most of it.",
+      "report": "We checked fit and lacing to reduce movement inside the shoe.",
+      "guard": "No wound or skin-care advice."
+    },
+    {
+      "id": "R-13", "name": "Wide foot in a narrow current model",
+      "when": { "all": [{ "field": "width", "in": ["wide", "extra_wide"] }, { "field": "current_shoe_problem", "includes": "too_tight" }] },
+      "then": { "width": { "wide": 3 }, "toe_box": { "wide_round": 2 }, "category": { "court_sport": -2 } },
+      "say": "You've been in a narrow last. Same size, wider fit — you'll feel the difference immediately, and it isn't about going up a size.",
+      "report": "We recommended a wider fit rather than a longer shoe."
+    },
+    {
+      "id": "R-14", "name": "Orthotic user + volume",
+      "when": { "all": [{ "field": "uses_orthotics", "in": ["custom", "otc"] }] },
+      "then": { "volume": { "high": 3 }, "insole": { "none": 3 } },
+      "flags": ["removable_insole_required", "size_up_check", "walk_test_required"],
+      "say": "Bring your orthotic — we fit the shoe to it. That means the factory insole has to come out, and sometimes a half size up to make room.",
+      "report": "We fitted your shoes to work with your existing orthotics, using a removable-insole design.",
+      "guard": "Never recommend a competing insole. Never modify or comment on a custom orthotic."
+    },
+    {
+      "id": "R-15", "name": "Low volume foot + heel slip",
+      "when": { "all": [{ "field": "foot_shape", "includes": "low_volume" }, { "field": "heel_slip_risk", "in": ["slight", "noticeable"] }] },
+      "then": { "heel_fit": { "secure_narrow": 3 }, "volume": { "low": 3 } },
+      "flags": ["lacing_guidance"],
+      "say": "Your foot doesn't fill the shoe vertically, which is why the heel lifts. A narrower heel or a lacing change usually solves it without going down a size.",
+      "report": "We chose a shoe with a more secure heel fit for your foot volume.",
+      "upsell": "volume_insole"
+    },
+    {
+      "id": "R-16", "name": "Size asymmetry",
+      "when": { "all": [{ "field": "size_asymmetry", "gte": 0.5 }] },
+      "then": { "volume": { "high": 1 } },
+      "flags": ["size_asymmetry", "walk_test_required"],
+      "say": "Your feet are slightly different sizes — that's completely normal. We fit the larger one and take up the extra space on the other side.",
+      "report": "Your feet measured slightly different sizes. We fitted the larger foot for comfort.",
+      "upsell": "volume_insole"
+    },
+    {
+      "id": "R-17", "name": "Bunion or toe accommodation",
+      "when": { "all": [{ "field": "toe_box_issue", "includes_any": ["bunion", "toe_overlap", "hammer_toe"] }] },
+      "then": { "toe_box": { "wide_round": 3 }, "width": { "wide": 2 } },
+      "flags": ["walk_test_required"],
+      "say": "We want a rounder, softer toe box with no seam sitting right on that spot. Let me check where this shoe's stitching lands on your foot.",
+      "report": "We recommended a rounder, roomier toe box with a soft upper for comfort.",
+      "guard": "Accommodation language only. Never suggest a shoe corrects a toe position."
+    },
+    {
+      "id": "R-18", "name": "Heel slip at standard width",
+      "when": { "all": [{ "field": "heel_slip_risk", "in": ["noticeable"] }, { "field": "width", "in": ["standard"] }] },
+      "then": { "heel_fit": { "structured": 3 }, "category": { "casual_comfort": -2 } },
+      "flags": ["lacing_guidance"],
+      "say": "Before we change size, try this lacing — it locks the heel down. If it still lifts, we'll look at a shoe with a narrower heel.",
+      "report": "We adjusted lacing and heel fit to keep your foot secure in the shoe."
+    },
+    {
+      "id": "R-19", "name": "Runner + knee discomfort + uneven wear",
+      "when": { "all": [{ "field": "purpose", "in": ["running"] }, { "field": "discomfort_area", "includes": "knee" }, { "field": "wear_pattern", "in": ["inner_edge", "uneven_lr"] }] },
+      "then": { "category": { "running_stability": 3 }, "support_level": { "stability": 3 } },
+      "flags": ["gait_review", "rotation_guidance", "referral_suggested"],
+      "say": "Your wear pattern isn't even, which is worth paying attention to as a runner. A stability shoe is a sensible next step, and when our gait platform is in we can look at this properly.",
+      "report": "Based on your running and your shoe wear pattern, we recommended a stability running shoe.",
+      "upsell": "rotation_pair",
+      "guard": "No injury-prevention claim. Never promise a hardware date."
+    },
+    {
+      "id": "R-20", "name": "Neutral runner + high mileage",
+      "when": { "all": [{ "field": "purpose", "in": ["running"] }, { "field": "activity_level", "in": ["very_active"] }, { "field": "pronation_tendency", "in": ["neutral"] }] },
+      "then": { "category": { "running_neutral": 3 }, "cushioning_level": { "plush": 2 } },
+      "flags": ["rotation_guidance"],
+      "say": "At your mileage, foam compresses faster than most people expect. Two pairs in rotation usually last longer than two pairs run back to back.",
+      "report": "We recommended a neutral, cushioned running shoe suited to your mileage.",
+      "upsell": "rotation_pair"
+    },
+    {
+      "id": "R-21", "name": "Work + 8+ hours standing",
+      "when": { "all": [{ "field": "purpose", "in": ["work"] }, { "field": "standing_hours", "in": ["8_plus"] }] },
+      "then": { "category": { "work_support": 3 }, "support_level": { "stability": 2 }, "cushioning_level": { "plush": 2 }, "insole": { "anti_fatigue": 3 } },
+      "say": "For a full shift, durability and an anti-fatigue insole matter as much as the shoe. The insole is the cheapest upgrade to how your legs feel at hour eight.",
+      "report": "Long shifts on hard surfaces. We recommended a durable, supportive work shoe with an anti-fatigue insole.",
+      "upsell": "anti_fatigue_insole"
+    },
+    {
+      "id": "R-22", "name": "Walking primary + comfort priority",
+      "when": { "all": [{ "field": "purpose", "in": ["walking"] }, { "field": "fit_priority", "includes": "comfort" }] },
+      "then": { "category": { "walking_comfort": 3 }, "cushioning_level": { "plush": 2 }, "support_level": { "light_stability": 2 } },
+      "say": "For walking, a smooth heel-to-toe roll is what you'll notice most. Take a lap on the hard floor, not the carpet — carpet flatters everything.",
+      "report": "We recommended a cushioned walking shoe with a smooth, comfortable stride.",
+      "upsell": "cushioning_insole"
+    },
+    {
+      "id": "R-23", "name": "Hiking + ankle concern",
+      "when": { "all": [{ "field": "purpose", "in": ["hiking"] }],
+                "any": [{ "field": "discomfort_area", "includes": "ankle" }, { "field": "balance_concern", "not_in": ["none"] }] },
+      "then": { "category": { "hiking": 3 }, "heel_fit": { "structured": 3 }, "support_level": { "stability": 2 } },
+      "flags": ["break_in_guidance"],
+      "say": "A mid-cut with a firm heel will feel more planted on uneven ground. Wear them around the house for a week before a long day out.",
+      "report": "We recommended a supportive hiking shoe with a structured heel, plus break-in time before longer hikes.",
+      "upsell": "hiking_socks",
+      "guard": "No claim about preventing ankle injury."
+    },
+    {
+      "id": "R-24", "name": "Kids fitting",
+      "when": { "any": [{ "field": "purpose", "in": ["kids"] }, { "field": "age_range", "in": ["under_18"] }] },
+      "then": { "category": { "kids": 3 }, "toe_box": { "roomy": 2 } },
+      "flags": ["size_up_check", "walk_test_required"],
+      "say": "We want about a thumb's width of growing room — enough to last, not so much they trip. I'd re-check the size in about three months.",
+      "report": "We fitted with growing room and recommended re-checking size in about three months.",
+      "guard": "SUPPRESS_UPSELL: no insole or orthotic upsell to minors."
+    },
+    {
+      "id": "R-25", "name": "Previous return: too narrow",
+      "when": { "all": [{ "field": "previous_return_reason", "in": ["too_narrow"] }] },
+      "then": { "width": { "wide": 3 }, "toe_box": { "roomy": 2 } },
+      "flags": ["walk_test_required"],
+      "say": "Last time the width was the issue, so let's start a width up rather than a size up — that's usually the fix.",
+      "report": "We adjusted width based on your previous experience."
+    },
+    {
+      "id": "R-26", "name": "Previous return: uncomfortable",
+      "when": { "all": [{ "field": "previous_return_reason", "in": ["uncomfortable"] }] },
+      "then": {},
+      "flags": ["walk_test_required", "extended_check_in"],
+      "say": "Since the last pair didn't work out, let's take a bit longer. Walk both of these and tell me what you notice — I'd rather get it right than fast.",
+      "report": "We took extra time on fit and will check in with you shortly after purchase.",
+      "guard": "Follow-up forced to 7 days. This rule intentionally costs time."
+    },
+    {
+      "id": "R-27", "name": "Current shoe 2+ years old",
+      "when": { "all": [{ "field": "current_shoe_age", "in": ["2_plus_years"] }] },
+      "then": { "cushioning_level": { "plush": 1 } },
+      "flags": ["break_in_guidance"],
+      "say": "Foam compresses over time, so a new pair will feel firmer at first even at the same model and size. That's the cushioning working, not the shoe being wrong.",
+      "report": "Your previous shoes were well used. New footwear may feel firmer at first — that's normal."
+    },
+    {
+      "id": "R-28", "name": "Custom orthotic user",
+      "when": { "all": [{ "field": "uses_orthotics", "in": ["custom"] }] },
+      "then": { "volume": { "high": 3 }, "insole": { "none": 3 } },
+      "flags": ["removable_insole_required", "size_up_check"],
+      "say": "We build the fit around your orthotic. The stock insole comes out, and we check depth so your foot isn't sitting too high in the shoe.",
+      "report": "We selected footwear compatible with your custom orthotics.",
+      "guard": "SUPPRESS_UPSELL: never sell against a custom orthotic."
+    },
+    {
+      "id": "R-29", "name": "Price priority + support need",
+      "when": { "all": [{ "field": "fit_priority", "includes": "price" }, { "field": "derived_support_need", "in": ["stability", "max_support"] }] },
+      "then": { "insole": { "arch_support": 2 } },
+      "flags": ["value_framing"],
+      "say": "If budget's the constraint, a solid shoe plus a good insole often beats a pricier shoe on its own — and the insole moves to your next pair.",
+      "report": "We balanced support and budget, including an insole option that carries over to future footwear.",
+      "upsell": "arch_support_insole",
+      "guard": "Never push above stated budget."
+    },
+    {
+      "id": "R-30", "name": "Red-flag routing",
+      "when": { "any": [{ "field": "red_flags", "includes_any": ["numbness", "tingling", "diabetes_foot_care", "persistent_pain", "open_sore"] }] },
+      "then": { "category": { "orthopedic_friendly": 3 }, "toe_box": { "wide_round": 3 }, "volume": { "high": 2 } },
+      "flags": ["referral_suggested", "seam_free_preferred"],
+      "say": "Let's keep this simple and comfortable — roomy, soft, nothing pressing anywhere. Given what you've described, it's worth having a healthcare professional take a look too.",
+      "report": "We focused on a roomy, low-pressure fit for your comfort.",
+      "guard": "SUPPRESS_UPSELL: highest-sensitivity rule. No diagnosis, no alarm, no product claim."
+    }
+  ]
+}
