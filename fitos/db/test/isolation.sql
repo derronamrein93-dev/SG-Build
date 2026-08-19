@@ -43,6 +43,27 @@ insert into person_identity (id, identity_lookup_hash) values
 update organization_customer set person_identity_id = 'cccccccc-0000-0000-0000-000000000001'
  where id in ('aaaaaaaa-3333-0000-0000-000000000001','bbbbbbbb-3333-0000-0000-000000000001');
 
+-- Person-scoped consent. Belongs to identity resolution, not to a retailer.
+-- Under the pre-0005 policy both rows were readable by every tenant, which is
+-- the defect 0005 closes.
+insert into consent_record (id, scope, person_identity_id, location_id, type, granted,
+                            consent_text_version, privacy_policy_version, method) values
+  -- captured at Org B's door
+  ('cccccccc-6666-0000-0000-000000000001','person','cccccccc-0000-0000-0000-000000000001',
+   'bbbbbbbb-1111-0000-0000-000000000001','identity_resolution', true,
+   'consent-identity-v1.0','privacy-v1.0','mystrideid_account'),
+  -- no location at all: must resolve to visible-to-nobody
+  ('cccccccc-6666-0000-0000-000000000002','person','cccccccc-0000-0000-0000-000000000001',
+   null,'portable_profile_share', true,
+   'consent-identity-v1.0','privacy-v1.0','mystrideid_account');
+
+-- One ordinary organization-scoped row, so the tests below prove narrowing
+-- rather than breakage.
+insert into consent_record (scope, organization_customer_id, location_id, type, granted,
+                            consent_text_version, privacy_policy_version, method) values
+  ('organization','aaaaaaaa-3333-0000-0000-000000000001','aaaaaaaa-1111-0000-0000-000000000001',
+   'fit_history_storage', true, 'consent-fit-v1.0','privacy-v1.0','tablet_checkbox');
+
 -- ── run as the application role, scoped to Org A / Location A1 ──
 set role fitos_app;
 set app.organization_id = 'aaaaaaaa-0000-0000-0000-000000000001';
@@ -108,6 +129,21 @@ begin
    where person_identity_id = 'cccccccc-0000-0000-0000-000000000001';
   if n <> 1 then raise exception 'TEST 8 FAILED: identity join exposed % customers', n; end if;
   raise notice 'PASS 8 · shared identity exposes no cross-retailer path';
+
+  -- 9 · person-scoped consent is not globally readable (0005)
+  --     Before 0005 this count was 2, and that is the whole point of the test.
+  select count(*) into n from consent_record where scope = 'person';
+  if n <> 0 then
+    raise exception 'TEST 9 FAILED: % person-scoped consent rows visible to Org A', n;
+  end if;
+  raise notice 'PASS 9 · person-scoped consent invisible across tenants';
+
+  -- 10 · ...and the organization's own consent rows still are
+  select count(*) into n from consent_record where scope = 'organization';
+  if n <> 1 then
+    raise exception 'TEST 10 FAILED: expected 1 own consent row, saw %', n;
+  end if;
+  raise notice 'PASS 10 · organization-scoped consent still visible to its own tenant';
 end $$;
 
 -- 7 · location authorization — same org, different door
@@ -146,6 +182,51 @@ begin
    where fitting_session_id = 'bbbbbbbb-4444-0000-0000-000000000001';
   if n <> 0 then raise exception 'TEST 5 FAILED: foreign scan metadata visible'; end if;
   raise notice 'PASS 5 · scan/storage references scoped to tenant (metadata layer)';
+end $$;
+
+-- 11 · the capturing organization keeps the person-scoped row it took, and the
+--      location-less row stays invisible to everyone including Org B.
+set role fitos_app;
+set app.organization_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+set app.location_id     = 'bbbbbbbb-1111-0000-0000-000000000001';
+do $$
+declare n int;
+begin
+  select count(*) into n from consent_record
+   where id = 'cccccccc-6666-0000-0000-000000000001';
+  if n <> 1 then
+    raise exception 'TEST 11 FAILED: capturing org cannot read its own person-scoped consent';
+  end if;
+
+  select count(*) into n from consent_record
+   where id = 'cccccccc-6666-0000-0000-000000000002';
+  if n <> 0 then
+    raise exception 'TEST 11 FAILED: location-less person-scoped consent was visible';
+  end if;
+  raise notice 'PASS 11 · person-scoped consent scoped to the capturing organization';
+end $$;
+
+-- 12 · the existing customer-creation write path still satisfies the new
+--      with-check. This is the exact insert queries.ts performs.
+set app.organization_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+set app.location_id     = 'aaaaaaaa-1111-0000-0000-000000000001';
+do $$
+declare n int;
+begin
+  insert into consent_record (scope, organization_customer_id, location_id, type, granted,
+                              consent_text_version, privacy_policy_version, method,
+                              captured_by_user_id)
+  values ('organization','aaaaaaaa-3333-0000-0000-000000000001',
+          'aaaaaaaa-1111-0000-0000-000000000001','receive_report', true,
+          'consent-fit-v1.0','privacy-v1.0','tablet_checkbox',
+          'aaaaaaaa-2222-0000-0000-000000000001');
+  select count(*) into n from consent_record where type = 'receive_report';
+  if n <> 1 then
+    raise exception 'TEST 12 FAILED: consent write did not land';
+  end if;
+  raise notice 'PASS 12 · customer-creation consent write still passes the with-check';
+exception when insufficient_privilege or check_violation then
+  raise exception 'TEST 12 FAILED: 0005 blocked the existing consent write path';
 end $$;
 
 reset role;

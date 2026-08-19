@@ -558,6 +558,52 @@ error_code · reported_at.
 | Retention | Retained while the organization is active. Erasure scrubs identity, retains anonymized fit records for aggregate learning — stated plainly in the consent text. Revoking identity resolution never deletes a retailer's own records. |
 | Audit | `consent_record`, `identity_resolution`, `recommendation`, `scan` and `fitting_feature` are append-only. |
 
+
+---
+
+## Connection model and trust boundaries
+
+Three ways into the database, and they are not interchangeable.
+
+| Path | Role | RLS | Authorization is |
+| --- | --- | --- | --- |
+| `withTenant` | `fitos_app` | Applies — no BYPASSRLS | The GUCs `app.organization_id` / `app.location_id`, enforced by policy |
+| `withService` | `fitos_svc` | **Bypassed** | Whatever the caller enforces. Currently: a token hash, or a test |
+| Migrations | `fitos_owner` | Applies — RLS is FORCEd | Not an application path |
+
+`withTenant` opens a transaction, issues `set local role fitos_app`, and sets the
+GUCs the policies read. FitOS does **not** connect with a service role and filter
+in application code; the database refuses cross-tenant reads whether or not a
+call site remembers to ask it to.
+
+### The public report is the one deliberate exception
+
+`/r/<token>` has no session and no tenant context, so RLS has nothing to key on.
+`loadReportByToken` hashes the token, matches `report.access_token_hash`, and
+checks `revoked_at` and `expires_at`. **The token hash is the authorization
+boundary.** It is 24 random bytes, stored only as a SHA-256 digest, and a
+fitting session id is not an input to that function and cannot become one.
+
+The constraint that keeps this safe: any query on that path is keyed by the token
+hash alone. It must never accept a caller-supplied identifier as a filter or a
+join condition, because RLS is not there to catch the mistake.
+
+**Residual risk — timing.** `token.test.ts` P11 proves a foreign tenant receives
+*identical results* for a real session id and a fabricated one, so the boundary
+withholds existence and not merely content. It does not prove the two take
+identical *time*. A timing oracle on report existence is real and is accepted
+here rather than overlooked: the mitigation is **rate limiting at the edge** on
+`/r/<token>`, not a query change, because constant-time behaviour in Postgres
+under a shared connection pool is not something an application query can promise.
+Revisit if the report route is ever exposed to untrusted volume.
+
+### If FitOS moves to Supabase, role switching must survive the move
+
+A Supabase client using the service-role key for application queries bypasses
+every policy at once — and the isolation suite would still pass, because it tests
+the database rather than the client. Whatever connects must arrive as a role
+without BYPASSRLS, with the tenant GUCs set from verified JWT claims.
+
 ---
 
 **Next:** [06 · Tech Stack & Shoe Data Strategy](06-tech-and-data-strategy.md)

@@ -10,22 +10,22 @@ layer, *What you told us*, and a token-gated public report route.
 | | Status |
 | --- | --- |
 | Schema + RLS (28 tables, 21 with RLS forced) | ✅ verified against Postgres 16 |
-| Tenant isolation suite (10 assertions) | ✅ passing |
+| Tenant isolation suite (14 assertions) | ✅ passing |
 | Recommendation engine, 30 rules, six-stage contract | ✅ 35 golden scenarios passing |
 | Contact identity hashing (per-org HMAC) | ✅ 5 tests passing |
 | Report language layer + *What you told us* | ✅ 16 tests passing |
-| Token-gated public report route | ✅ 9 tests passing against Postgres |
+| Token-gated public report route | ✅ 11 tests passing against Postgres |
 | Fitting flow: dashboard → customer → intake → assessment → recommendation → report | ✅ walked end to end in a browser |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**65 tests across four suites**, plus 10 isolation assertions in psql.
+**67 tests across four suites**, plus 14 isolation assertions in psql.
 
 ## Run it
 
 ```bash
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
-npm run test          # engine, identity, language, report-access  (65 tests)
-npm run db:isolation  # tenant isolation suite  (10 assertions)
+npm run test          # engine, identity, language, report-access  (67 tests)
+npm run db:isolation  # tenant isolation suite  (14 assertions)
 npm run build && npm start
 ```
 

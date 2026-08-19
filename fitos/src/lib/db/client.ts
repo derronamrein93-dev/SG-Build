@@ -47,7 +47,19 @@ export async function closePool(): Promise<void> {
   await pool.end();
 }
 
-/** Service role: seeding, jobs, identity resolution. Never reachable from a page. */
+/**
+ * Service role — runs as `fitos_svc`, which has BYPASSRLS. No policy applies to
+ * anything done in here.
+ *
+ * Used by: seeding, tests, identity resolution, and ONE production path —
+ * `loadReportByToken`, where the customer is anonymous, there is no tenant
+ * context, and the SHA-256 token match IS the authorization boundary.
+ *
+ * The rule that keeps that path safe: a query inside it may be keyed by the
+ * token hash and nothing else. It must never accept a caller-supplied
+ * identifier as a filter or a join condition, because RLS is not there to catch
+ * the mistake. Anything needing a tenant predicate belongs in `withTenant`.
+ */
 export async function withService<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {

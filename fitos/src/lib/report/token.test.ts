@@ -107,6 +107,51 @@ test('P09 the internal view stays tenant-scoped and needs no token', async () =>
   assert.equal(Number(leaked), 0, 'reports must not leak across organizations');
 });
 
+test('P10 a token resolves only its own report', async () => {
+  // "A valid token works" is weaker than it sounds: it passes even if the query
+  // ignores the token and returns the newest report. Two live tokens at once is
+  // what makes the claim exclusivity rather than existence.
+  const a = await seedReport();
+  const b = await seedReport();
+
+  const ra = await loadReportByToken(a.token);
+  const rb = await loadReportByToken(b.token);
+
+  assert.equal(ra?.fitting_session_id, a.sessionId);
+  assert.equal(rb?.fitting_session_id, b.sessionId);
+  assert.notEqual(ra?.id, rb?.id, 'two tokens must not resolve the same report');
+});
+
+test('P11 an unrelated organization cannot infer that a report exists', async () => {
+  // Isolation is not only "cannot read". If a foreign tenant can tell a real
+  // session id from a fabricated one — different row count, different error,
+  // anything — the boundary leaks existence even while withholding content.
+  const { sessionId } = await seedReport();
+
+  const other = await withService(async (c) => {
+    const { rows } = await c.query(
+      `insert into organization (name) values ('Unrelated Retailer') returning id`);
+    return rows[0].id as string;
+  });
+
+  const probe = (id: string) => withTenant(
+    { organizationId: other, locationId: DEMO.locationId },
+    async (c) => (await c.query(
+      `select r.id from report r
+         join fitting_session s on s.id = r.fitting_session_id
+        where r.fitting_session_id = $1 limit 1`, [id])).rows[0] ?? null);
+
+  const real = await probe(sessionId);
+  const fake = await probe('00000000-0000-0000-0000-000000000000');
+
+  assert.equal(real, null, 'a foreign tenant must not resolve a real session id');
+  assert.deepEqual(real, fake, 'real and fabricated ids must be indistinguishable');
+
+  // Not proven here: that the two take the same TIME. See docs/05, "Connection
+  // model and trust boundaries" — accepted residual risk, mitigated by rate
+  // limiting at the edge rather than by a query change.
+});
+
 // Close the pool rather than exiting the process: process.exit races the
 // final test and silently swallows its result.
 test.after(async () => { await closePool(); });
