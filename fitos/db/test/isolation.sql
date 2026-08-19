@@ -57,6 +57,13 @@ insert into consent_record (id, scope, person_identity_id, location_id, type, gr
    null,'portable_profile_share', true,
    'consent-identity-v1.0','privacy-v1.0','mystrideid_account');
 
+-- Audit rows for both organizations, seeded through the service role.
+insert into audit_log (organization_id, action, subject_type, subject_id, metadata) values
+  ('aaaaaaaa-0000-0000-0000-000000000001','customer_identity.merge_requested',
+   'organization_customer','aaaaaaaa-3333-0000-0000-000000000001','{"reason":"duplicate"}'),
+  ('bbbbbbbb-0000-0000-0000-000000000001','customer_identity.merge_completed',
+   'organization_customer','bbbbbbbb-3333-0000-0000-000000000001','{}');
+
 -- One ordinary organization-scoped row, so the tests below prove narrowing
 -- rather than breakage.
 insert into consent_record (scope, organization_customer_id, location_id, type, granted,
@@ -144,6 +151,47 @@ begin
     raise exception 'TEST 10 FAILED: expected 1 own consent row, saw %', n;
   end if;
   raise notice 'PASS 10 · organization-scoped consent still visible to its own tenant';
+
+  -- 13 · audit rows are readable by the organization that owns them
+  select count(*) into n from audit_log;
+  if n <> 1 then
+    raise exception 'TEST 13 FAILED: expected 1 own audit row, saw %', n;
+  end if;
+  raise notice 'PASS 13 · own audit rows readable';
+
+  -- 14 · ...and only by that organization
+  select count(*) into n from audit_log
+   where organization_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+  if n <> 0 then
+    raise exception 'TEST 14 FAILED: % foreign audit rows visible', n;
+  end if;
+  raise notice 'PASS 14 · audit rows not readable across tenants';
+
+  -- 15 · append-only: no UPDATE, by grant and by the absence of a policy
+  begin
+    update audit_log set action = 'tamper.attempt';
+    raise exception 'TEST 15 FAILED: audit row was updatable';
+  exception when insufficient_privilege then
+    raise notice 'PASS 15 · audit rows cannot be updated by the app role';
+  end;
+
+  -- 16 · append-only: no DELETE either
+  begin
+    delete from audit_log;
+    raise exception 'TEST 16 FAILED: audit row was deletable';
+  exception when insufficient_privilege then
+    raise notice 'PASS 16 · audit rows cannot be deleted by the app role';
+  end;
+
+  -- 17 · an insert claiming another organization is refused by the policy
+  begin
+    insert into audit_log (organization_id, action, subject_type)
+    values ('bbbbbbbb-0000-0000-0000-000000000001','customer_identity.merge_rejected',
+            'organization_customer');
+    raise exception 'TEST 17 FAILED: wrote an audit row into a foreign organization';
+  exception when insufficient_privilege then
+    raise notice 'PASS 17 · audit inserts are confined to the current tenant';
+  end;
 end $$;
 
 -- 7 · location authorization — same org, different door

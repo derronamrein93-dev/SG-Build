@@ -10,22 +10,23 @@ layer, *What you told us*, and a token-gated public report route.
 | | Status |
 | --- | --- |
 | Schema + RLS (28 tables, 21 with RLS forced) | ✅ verified against Postgres 16 |
-| Tenant isolation suite (14 assertions) | ✅ passing |
+| Tenant isolation suite (19 assertions) | ✅ passing |
 | Recommendation engine, 30 rules, six-stage contract | ✅ 35 golden scenarios passing |
 | Contact identity hashing (per-org HMAC) | ✅ 5 tests passing |
 | Report language layer + *What you told us* | ✅ 16 tests passing |
 | Token-gated public report route | ✅ 11 tests passing against Postgres |
+| Append-only tenant-scoped `audit_log` | ✅ 10 tests + 5 isolation assertions |
 | Fitting flow: dashboard → customer → intake → assessment → recommendation → report | ✅ walked end to end in a browser |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**67 tests across four suites**, plus 14 isolation assertions in psql.
+**77 tests across five suites**, plus 19 isolation assertions in psql.
 
 ## Run it
 
 ```bash
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
-npm run test          # engine, identity, language, report-access  (67 tests)
-npm run db:isolation  # tenant isolation suite  (14 assertions)
+npm run test          # engine, identity, language, report-access, audit  (77 tests)
+npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```
 
@@ -39,6 +40,8 @@ npm run build && npm start
 | [05 §1–§9](../docs/05-data-model.md) tenancy + identity | `db/migrations/0001_tenancy_and_identity.sql` |
 | [05 §13–§25](../docs/05-data-model.md) fitting + catalog | `db/migrations/0002_fitting_and_catalog.sql` |
 | [05 §26](../docs/05-data-model.md) access + RLS | `db/migrations/0003_rls.sql` |
+| [08B step 1](../docs/phases/08b-steps-1-2.md) consent scope | `db/migrations/0005_consent_person_scope.sql` |
+| [08B step 3](../docs/phases/08b-fitos-audit-and-hardening.md) audit trail | `db/migrations/0006_audit_log.sql`, `src/lib/db/audit.ts` |
 | [09 Day 1 gate](../docs/09-build-plan.md) isolation suite | `db/test/isolation.sql` |
 | [03](../docs/03-recommendation-engine.md) rules + contract | `src/lib/rules/{rules.json,engine.ts}` |
 | [03 §8](../docs/03-recommendation-engine.md) golden set | `src/lib/rules/engine.test.ts` |
