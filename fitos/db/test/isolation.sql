@@ -58,6 +58,13 @@ insert into consent_record (id, scope, person_identity_id, location_id, type, gr
    'consent-identity-v1.0','privacy-v1.0','mystrideid_account');
 
 -- Audit rows for both organizations, seeded through the service role.
+-- A merged-away record in Org B, so assertion 20 has something to fail to see.
+insert into organization_customer (id, organization_id, created_at_location_id, first_name, last_name, phone_lookup_hash, phone_key_version)
+ values ('bbbbbbbb-3333-0000-0000-000000000002','bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-1111-0000-0000-000000000001','Ada','Duplicate', digest('org-b-key:+15025559999','sha256'), 1);
+update organization_customer
+   set merged_into_customer_id = 'bbbbbbbb-3333-0000-0000-000000000001', merged_at = now()
+ where id = 'bbbbbbbb-3333-0000-0000-000000000002';
+
 insert into report_view (report_id, organization_id) values
   ('aaaaaaaa-5555-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000001'),
   ('bbbbbbbb-5555-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001');
@@ -217,6 +224,27 @@ begin
     raise exception 'TEST 19 FAILED: access-log row was deletable';
   exception when insufficient_privilege then
     raise notice 'PASS 19 · report_view rows cannot be deleted by the app role';
+  end;
+
+  -- 20 · a merged-away record is a tombstone, not a hiding place. It stays
+  --      invisible across tenants exactly as a live record does.
+  select count(*) into n from organization_customer
+   where merged_into_customer_id is not null
+     and organization_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+  if n <> 0 then
+    raise exception 'TEST 20 FAILED: % foreign merged records visible', n;
+  end if;
+  raise notice 'PASS 20 · merged records do not leak across tenants';
+
+  -- 21 · the app role cannot merge. Authority is fitos_svc only.
+  begin
+    perform app_merge_customer('aaaaaaaa-3333-0000-0000-000000000001',
+                               'bbbbbbbb-3333-0000-0000-000000000001',
+                               'aaaaaaaa-2222-0000-0000-000000000001',
+                               gen_random_uuid(), false);
+    raise exception 'TEST 21 FAILED: the app role executed a merge';
+  exception when insufficient_privilege then
+    raise notice 'PASS 21 · merge authority restricted to the service role';
   end;
 end $$;
 

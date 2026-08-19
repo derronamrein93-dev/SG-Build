@@ -561,6 +561,96 @@ error_code · reported_at.
 
 ---
 
+## Customer merge
+
+Two records for one person is the normal end state of a phone number given twice
+in two different forms. `app_merge_customer()` resolves them without losing
+fitting history, consent history, reports, follow-ups, or the ability to explain
+what happened afterwards.
+
+### The merged-away record is never deleted
+
+Not a preference — the schema forces it. `phone_lookup_hash` is a *column* on
+`organization_customer`, so the survivor cannot absorb the other record's number;
+there is nowhere to put it. The tombstone is the only thing that can carry that
+hash and redirect a search on it. And `fitting_session.organization_customer_id`
+is `ON DELETE SET NULL` while the other five references cascade, so deleting a
+customer would orphan their fitting history rather than remove it.
+
+The tombstone keeps its phone columns and its `local_customer_number` — a
+retailer may have written that number on a shoebox.
+
+### Reads resolve, writes refuse
+
+| | Behaviour |
+| --- | --- |
+| `findCustomerByPhone` | Resolves through `app_resolve_customer()`. Either number reaches the survivor. |
+| `startSession` | **Raises.** A `fitting_session_no_tombstone` trigger enforces it at the table, so it holds for psql and the seed too, not only for the one function that exists today. |
+
+Silently retargeting a write is how a fitting lands on a record the associate did
+not choose. A read may be helpful; a write must be explicit.
+
+### What moves, and what does not
+
+Moved to the survivor: `fitting_session`, `report`, `follow_up`,
+`consent_record`, and `identity_resolution` where it does not collide with its
+own `(customer, person_identity)` unique key.
+
+**`location_customer_access` is not moved.** Its unique key is
+`(organization_customer_id, location_id) where revoked_at is null`, so moving
+would collide wherever both records were recognised at the same door. Instead the
+survivor is granted access at any door the loser could use and it could not, and
+the tombstone keeps its own rows — harmless, since nothing resolves to it.
+
+### Consent: moved, never invented
+
+The merge writes no consent rows. It moves organization-scoped rows and nothing
+else, so the chokepoint's rule — latest row wins, ties fall to withdrawn —
+applies unchanged to the combined timeline. Person-scoped rows carry
+`person_identity_id` and no customer, so they are untouched and 0005's visibility
+is unaffected.
+
+**One consequence is surfaced rather than buried.** If the survivor withdrew
+`marketing_email` in March and the merged-away record granted it in June, the
+June grant is now the most recent row and consent reads true. That state did not
+exist before the merge. The merge therefore **refuses** unless
+`confirm_marketing_flip => true`, and records the deltas in the audit as
+`flipped_to_granted` / `flipped_to_withdrawn`. Non-marketing flips proceed
+without ceremony.
+
+### Cross-tenant
+
+A foreign customer id, an invisible one, and a nonexistent one all produce the
+same message: `customer not found or not eligible for merge`. A distinct
+"belongs to another organization" error would confirm that an id exists
+somewhere, which is an existence oracle for anyone who can call the function.
+
+Note what actually enforces this: execute is granted to `fitos_svc`, which has
+`BYPASSRLS`, so **the explicit organization check inside the function is the
+control** — not RLS. Invoker rights are kept so RLS *also* applies if this is
+ever called as `fitos_app`, which isolation assertion 21 proves it cannot be.
+
+### Reversal is precise about the past and honest about the interval
+
+`app_revert_customer_merge()` replays the `merge_completed` manifest backwards.
+Rows created **after** the merge stay with the survivor: at the moment they were
+written only one record was live, so attributing them to either original would be
+a guess. A chain — where the survivor has itself since been merged — is refused
+rather than unwound; the honest alternative is a forward correction, creating a
+fresh record and moving the disputed rows explicitly.
+
+Reversal clears the redirect **before** moving rows back, or the tombstone
+trigger would block the very operation that un-tombstones the record.
+
+### Not built
+
+No merge UI, no fuzzy matching, no automatic merge, no cross-tenant identity
+graph, and no `customer_identifiers` table. That last one is the real long-term
+answer to "one person, two numbers" — it would let a survivor hold both and
+retire the tombstone redirect entirely — and it belongs in its own step.
+
+---
+
 ## report_view integrity
 
 `report_view` records who opened a customer report and when. Migration 0007 gave

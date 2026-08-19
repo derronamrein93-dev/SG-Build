@@ -166,7 +166,8 @@ test('CH10 no code outside the chokepoint queries consent_record', async () => {
   const ALLOWED = new Set([
     'src/lib/consent.ts',        // the chokepoint itself
     'src/lib/consent.test.ts',   // this file, which seeds fixtures
-    'src/lib/queries.ts',        // consent CAPTURE at customer creation, not a check
+    'src/lib/customers.ts',      // consent CAPTURE at customer creation, not a check
+    'src/lib/db/merge.test.ts',  // seeds consent fixtures to prove merge moves them
   ]);
   const offenders: string[] = [];
   const walk = (dir: string) => {

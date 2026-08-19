@@ -38,9 +38,8 @@ test('ID06 the seeded returning customer is still findable by phone', async () =
   // the hash computed at lookup — and the Day 5 returning-customer path fails in
   // front of a store owner rather than here.
   //
-  // The query is replicated rather than imported: queries.ts is `server-only`,
-  // which throws under node:test. What matters is the hash comparison, and that
-  // is identical either way.
+  // The query is replicated rather than imported so this asserts the stored
+  // hash directly, without the merge redirect in the way.
   const { withTenant } = await import('./client');
   const { DEMO } = await import('../session');
   const e164 = normalizePhone('612-555-4417')!;

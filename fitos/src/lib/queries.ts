@@ -42,71 +42,11 @@ export async function dashboard() {
 }
 
 /** Exact-match only: the lookup runs against a keyed hash (docs/05 §10). */
-export async function findCustomerByPhone(raw: string) {
-  const ctx = currentContext();
-  const e164 = normalizePhone(raw);
-  if (!e164) return null;
-  return withTenant(ctx, async (c) => {
-    const { rows } = await c.query(
-      `select id, first_name, last_name, local_customer_number, phone_last4
-         from organization_customer
-        where phone_lookup_hash = $1 and deleted_at is null limit 1`,
-      [phoneLookupHash(ctx.organizationId, e164)]);
-    if (!rows.length) return null;
-    const visits = await c.query(
-      `select count(*) n, max(completed_at) last from fitting_session
-        where organization_customer_id = $1 and status = 'completed'`, [rows[0].id]);
-    return { ...rows[0], visits: Number(visits.rows[0].n), lastVisit: visits.rows[0].last };
-  });
-}
-
-export async function createCustomer(input: {
-  firstName: string; lastName: string; phone: string; consent: boolean;
-}) {
-  const ctx = currentContext();
-  const e164 = normalizePhone(input.phone);
-  if (!e164) throw new Error('A complete phone number is required.');
-  // This gates on the checkbox in front of the associate — it is consent
-  // CAPTURE, not a consent check. Anything asking whether consent *holds* for a
-  // stored customer goes through hasConsent() in src/lib/consent.ts.
-  if (!input.consent) throw new Error('Consent is required before storing fitting information.');
-  return withTenant(ctx, async (c) => {
-    const { rows } = await c.query(
-      `insert into organization_customer
-        (organization_id,created_at_location_id,first_name,last_name,
-         phone_lookup_hash,phone_encrypted,phone_last4,phone_key_version,identification_method)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,'phone')
-       returning id, first_name, last_name, local_customer_number`,
-      [ctx.organizationId, ctx.locationId, input.firstName, input.lastName,
-       phoneLookupHash(ctx.organizationId, e164), Buffer.from(e164), last4(e164), PHONE_KEY_VERSION]);
-    // Five consent types, never one boolean (docs/05 §11). Withdrawal is a new
-    // row with granted=false, never an update — which is why reads must resolve
-    // the most recent row and belong in the chokepoint rather than here.
-    for (const type of ['fit_history_storage', 'privacy_ack']) {
-      await c.query(
-        `insert into consent_record
-          (scope,organization_customer_id,location_id,type,granted,consent_text_version,privacy_policy_version,method,captured_by_user_id)
-         values ('organization',$1,$2,$3,true,'consent-fit-v1.0','privacy-v1.0','tablet_checkbox',$4)`,
-        [rows[0].id, ctx.locationId, type, ctx.userId]);
-    }
-    return rows[0];
-  });
-}
-
-export async function startSession(customerId: string | null) {
-  const ctx = currentContext();
-  return withTenant(ctx, async (c) => {
-    const visit = customerId
-      ? await c.query(`select count(*) + 1 n from fitting_session
-                        where organization_customer_id = $1 and status = 'completed'`, [customerId])
-      : { rows: [{ n: 1 }] };
-    const { rows } = await c.query(
-      `insert into fitting_session (organization_id,location_id,organization_customer_id,user_id,status,visit_number)
-       values ($1,$2,$3,$4,'draft',$5) returning id`,
-      [ctx.organizationId, ctx.locationId, customerId, ctx.userId, Number(visit.rows[0].n)]);
-    return rows[0].id as string;
-  });
-}
+// findCustomerByPhone / createCustomer / startSession live in ./customers, which
+// deliberately omits `server-only` so the merge-redirect behaviour can be tested
+// directly. Same reasoning as ./reports. Re-exported here so call sites are
+// unchanged.
+export { findCustomerByPhone, createCustomer, startSession } from './customers';
 
 export async function loadSession(id: string) {
   const ctx = currentContext();

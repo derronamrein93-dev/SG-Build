@@ -10,7 +10,7 @@ layer, *What you told us*, and a token-gated public report route.
 | | Status |
 | --- | --- |
 | Schema + RLS (28 tables, 21 with RLS forced) | ✅ verified against Postgres 16 |
-| Tenant isolation suite (21 assertions) | ✅ passing |
+| Tenant isolation suite (23 assertions) | ✅ passing |
 | Recommendation engine, 30 rules, six-stage contract | ✅ 35 golden scenarios passing |
 | Contact identity hashing (per-org HMAC) | ✅ 5 tests passing |
 | Report language layer + *What you told us* | ✅ 16 tests passing |
@@ -19,17 +19,18 @@ layer, *What you told us*, and a token-gated public report route.
 | Consent chokepoint `hasConsent()` | ✅ 10 tests, fails closed |
 | Required identity peppers, no fallback | ✅ 11 tests, fails fast |
 | Tenant-scoped, append-only `report_view` | ✅ gated orphan sweep, 5 preflight assertions |
+| Customer merge primitive (tombstone + reversal) | ✅ 21 tests, service-role only |
 | Fitting flow: dashboard → customer → intake → assessment → recommendation → report | ✅ walked end to end in a browser |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**101 tests across seven suites**, plus 21 isolation assertions and 5 preflight assertions in psql.
+**122 tests across eight suites**, plus 23 isolation assertions and 5 preflight assertions in psql.
 
 ## Run it
 
 ```bash
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
 npm run verify        # reset → tests → preflight → isolation → build → reset
-npm run test          # all suites  (101 tests) — sources dev.env for the peppers
+npm run test          # all suites  (122 tests) — sources dev.env for the peppers
 npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```
