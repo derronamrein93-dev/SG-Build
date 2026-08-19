@@ -66,6 +66,9 @@ export async function createCustomer(input: {
   const ctx = currentContext();
   const e164 = normalizePhone(input.phone);
   if (!e164) throw new Error('A complete phone number is required.');
+  // This gates on the checkbox in front of the associate — it is consent
+  // CAPTURE, not a consent check. Anything asking whether consent *holds* for a
+  // stored customer goes through hasConsent() in src/lib/consent.ts.
   if (!input.consent) throw new Error('Consent is required before storing fitting information.');
   return withTenant(ctx, async (c) => {
     const { rows } = await c.query(
@@ -76,7 +79,9 @@ export async function createCustomer(input: {
        returning id, first_name, last_name, local_customer_number`,
       [ctx.organizationId, ctx.locationId, input.firstName, input.lastName,
        phoneLookupHash(ctx.organizationId, e164), Buffer.from(e164), last4(e164), PHONE_KEY_VERSION]);
-    // Five consent types, never one boolean (docs/05 §11).
+    // Five consent types, never one boolean (docs/05 §11). Withdrawal is a new
+    // row with granted=false, never an update — which is why reads must resolve
+    // the most recent row and belong in the chokepoint rather than here.
     for (const type of ['fit_history_storage', 'privacy_ack']) {
       await c.query(
         `insert into consent_record

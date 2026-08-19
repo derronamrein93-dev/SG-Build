@@ -16,16 +16,17 @@ layer, *What you told us*, and a token-gated public report route.
 | Report language layer + *What you told us* | ✅ 16 tests passing |
 | Token-gated public report route | ✅ 11 tests passing against Postgres |
 | Append-only tenant-scoped `audit_log` | ✅ 10 tests + 5 isolation assertions |
+| Consent chokepoint `hasConsent()` | ✅ 10 tests, fails closed |
 | Fitting flow: dashboard → customer → intake → assessment → recommendation → report | ✅ walked end to end in a browser |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**77 tests across five suites**, plus 19 isolation assertions in psql.
+**87 tests across six suites**, plus 19 isolation assertions in psql.
 
 ## Run it
 
 ```bash
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
-npm run test          # engine, identity, language, report-access, audit  (77 tests)
+npm run test          # engine, identity, language, report-access, audit, consent  (87 tests)
 npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```

@@ -561,6 +561,55 @@ error_code · reported_at.
 
 ---
 
+## Consent checks
+
+**Consent is read in exactly one place: `hasConsent()` in `src/lib/consent.ts`.
+Do not query `consent_record` directly.** `consent.test.ts` CH10 enforces this by
+scanning the source tree; adding a file to its allowlist is a deliberate act.
+
+The rule exists because the model has three properties that are each easy to get
+wrong once, and impossible to get right consistently across scattered call
+sites:
+
+1. **Withdrawal is a new row, not an update.** There is no `revoked_at` and no
+   UPDATE grant. "Does consent hold" is therefore "what does the most recent row
+   say" — never "does a row exist". A call site that checks `granted = true`
+   without ordering will happily honour consent that was withdrawn afterwards.
+2. **`captured_at` defaults to `now()`, which is transaction start time.** Two
+   rows written in one transaction tie. The chokepoint breaks the tie with
+   `granted asc`, so a withdrawal beats a grant at the same instant — the
+   fail-closed direction.
+3. **Person-scoped rows carry location semantics from migration 0005.** RLS
+   limits them to the capturing organization; the helper narrows further to the
+   capturing *location*, and a person-scoped row with no location satisfies
+   nothing at all. The `person` subject type requires a `locationId`
+   structurally, so it is not possible to ask the unsafe question.
+
+Everything fails closed: no row, a withdrawal, a foreign tenant's row (invisible
+under RLS), a mismatched location, an unknown customer id.
+
+### Relationship to migration 0005
+
+0005 decides *visibility* — which rows a tenant may see at all. The chokepoint
+decides *meaning* — whether the rows it can see amount to active consent. They
+are deliberately separate: RLS cannot express "most recent row wins", and the
+application must not be the thing standing between one tenant and another's data.
+
+### Capture is not a check
+
+`queries.ts` gates customer creation on the consent checkbox and writes
+`consent_record` rows. That is capture. It stays where it is; the chokepoint
+covers reads.
+
+### Expiration is not supported
+
+`consent_record` has no expiry column, so `hasConsent()` cannot evaluate one, and
+`CONSENT_EXPIRY_SUPPORTED` is exported as `false` to say so out loud. Giving
+consent a lifetime needs a schema change plus a predicate in two queries — after
+which every caller inherits it, which is the point of having one chokepoint.
+
+---
+
 ## Connection model and trust boundaries
 
 Three ways into the database, and they are not interchangeable.
