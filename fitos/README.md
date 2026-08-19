@@ -29,6 +29,7 @@ layer, *What you told us*, and a token-gated public report route.
 
 ```bash
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
+npm run demo          # reset, build, start on :3000  (see ../DEMO_RUNBOOK.md)
 npm run verify        # reset → tests → preflight → isolation → build → reset
 npm run test          # all suites  (122 tests) — sources dev.env for the peppers
 npm run db:isolation  # tenant isolation suite  (19 assertions)

@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": ". ./dev.env && next dev -p 3000",
     "build": "next build",
-    "start": "next start -p 3000",
+    "start": ". ./dev.env && next start -p 3000",
     "test": ". ./dev.env && tsx --test $(find src -name '*.test.ts' | sort)",
     "db:reset": "bash db/reset.sh",
     "db:isolation": "psql -h 127.0.0.1 -U fitos_owner -d fitos -q -v ON_ERROR_STOP=1 -f db/test/isolation.sql",
     "db:preflight": "psql -h 127.0.0.1 -U fitos_owner -d fitos -q -v ON_ERROR_STOP=1 -c \"set role fitos_svc\" -c 'select * from report_view_orphan_audit()'",
     "db:preflight-test": "psql -h 127.0.0.1 -U fitos_owner -d fitos -q -v ON_ERROR_STOP=1 -f db/test/preflight.sql",
-    "verify": "bash db/reset.sh && npm run test && npm run db:preflight-test && npm run db:isolation && npm run build && bash db/reset.sh"
+    "verify": "bash db/reset.sh && npm run test && npm run db:preflight-test && npm run db:isolation && npm run build && bash db/reset.sh",
+    "demo": "bash db/reset.sh && npm run build && npm start"
   },
   "dependencies": {
     "next": "^15.5.23",
