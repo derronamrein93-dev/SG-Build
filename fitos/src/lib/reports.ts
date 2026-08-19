@@ -21,6 +21,7 @@ export async function loadReportByToken(token: string) {
   return withService(async (c) => {
     const { rows } = await c.query(
       `select r.*, s.shopping_purpose, s.visit_number, s.completed_at,
+              s.organization_id,
               c.first_name, c.last_name, u.first_name as fitter,
               l.name as location_name, l.address_line1, l.city, l.region, l.phone as location_phone
          from report r
@@ -33,9 +34,13 @@ export async function loadReportByToken(token: string) {
           and r.expires_at > now()
         limit 1`, [hash]);
     if (!rows.length) return null;
+    // The access log carries the owning organization so it can be tenant-scoped
+    // (0007). It is taken from the resolved fitting session, never from input:
+    // the viewer is anonymous and supplies nothing but a token.
     await c.query(
-      `insert into report_view (report_id, user_agent_class, referrer_class) values ($1,'unknown','direct')`,
-      [rows[0].id]);
+      `insert into report_view (report_id, organization_id, user_agent_class, referrer_class)
+       values ($1,$2,'unknown','direct')`,
+      [rows[0].id, rows[0].organization_id]);
     return rows[0];
   });
 }

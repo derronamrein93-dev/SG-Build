@@ -52,7 +52,11 @@ test('ID06 the seeded returning customer is still findable by phone', async () =
         where phone_lookup_hash = $1 and deleted_at is null limit 1`,
       [phoneLookupHash(DEMO.organizationId, e164)])).rows[0] ?? null);
 
-  assert.ok(found, 'seeded customer must resolve under the dev.env pepper');
+  assert.ok(found,
+    'seeded customer did not resolve. Either the peppers in dev.env drifted from ' +
+    'the ones the seed used, or db/test/isolation.sql replaced the demo fixture ' +
+    '(it deletes all organizations). Run `bash db/reset.sh` and try again, or use ' +
+    '`npm run verify`, which sequences these correctly.');
   assert.equal(found.phone_last4, '4417');
   assert.equal(found.phone_key_version, 1);
 });

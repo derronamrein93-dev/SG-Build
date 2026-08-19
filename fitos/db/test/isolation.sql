@@ -58,6 +58,10 @@ insert into consent_record (id, scope, person_identity_id, location_id, type, gr
    'consent-identity-v1.0','privacy-v1.0','mystrideid_account');
 
 -- Audit rows for both organizations, seeded through the service role.
+insert into report_view (report_id, organization_id) values
+  ('aaaaaaaa-5555-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000001'),
+  ('bbbbbbbb-5555-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001');
+
 insert into audit_log (organization_id, action, subject_type, subject_id, metadata) values
   ('aaaaaaaa-0000-0000-0000-000000000001','customer_identity.merge_requested',
    'organization_customer','aaaaaaaa-3333-0000-0000-000000000001','{"reason":"duplicate"}'),
@@ -191,6 +195,28 @@ begin
     raise exception 'TEST 17 FAILED: wrote an audit row into a foreign organization';
   exception when insufficient_privilege then
     raise notice 'PASS 17 · audit inserts are confined to the current tenant';
+  end;
+
+  -- 18 · the report access log is readable only by the organization it belongs
+  --      to. Viewing patterns are a customer behaviour signal; before 0007 this
+  --      table had no organization_id and no policy at all.
+  select count(*) into n from report_view;
+  if n <> 1 then
+    raise exception 'TEST 18 FAILED: expected 1 own report_view row, saw %', n;
+  end if;
+  select count(*) into n from report_view
+   where organization_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+  if n <> 0 then
+    raise exception 'TEST 18 FAILED: % foreign report_view rows visible', n;
+  end if;
+  raise notice 'PASS 18 · report_view scoped to its own tenant';
+
+  -- 19 · and it is append-only, like audit_log
+  begin
+    delete from report_view;
+    raise exception 'TEST 19 FAILED: access-log row was deletable';
+  exception when insufficient_privilege then
+    raise notice 'PASS 19 · report_view rows cannot be deleted by the app role';
   end;
 end $$;
 

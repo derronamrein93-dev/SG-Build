@@ -152,6 +152,34 @@ test('P11 an unrelated organization cannot infer that a report exists', async ()
   // limiting at the edge rather than by a query change.
 });
 
+test('P12 opening a report logs a view carrying the owning organization', async () => {
+  // 0007 made report_view tenant-scoped. The organization comes from the
+  // resolved fitting session, never from anything the anonymous viewer supplies.
+  const { token, sessionId } = await seedReport();
+  await loadReportByToken(token);
+
+  const logged = await withService(async (c) => (await c.query(
+    `select rv.organization_id, s.organization_id as expected
+       from report_view rv
+       join report r on r.id = rv.report_id
+       join fitting_session s on s.id = r.fitting_session_id
+      where s.id = $1
+      order by rv.viewed_at desc limit 1`, [sessionId])).rows[0]);
+
+  assert.ok(logged, 'a view must be logged');
+  assert.equal(logged.organization_id, logged.expected);
+  assert.equal(logged.organization_id, DEMO.organizationId);
+});
+
+test('P13 a failed token lookup logs nothing', async () => {
+  const before = await withService(async (c) =>
+    Number((await c.query('select count(*) n from report_view')).rows[0].n));
+  await loadReportByToken('this-is-not-a-real-token-at-all-0001');
+  const after = await withService(async (c) =>
+    Number((await c.query('select count(*) n from report_view')).rows[0].n));
+  assert.equal(after, before, 'an unresolved token must not create an access-log row');
+});
+
 // Close the pool rather than exiting the process: process.exit races the
 // final test and silently swallows its result.
 test.after(async () => { await closePool(); });

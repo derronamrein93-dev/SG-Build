@@ -561,6 +561,79 @@ error_code · reported_at.
 
 ---
 
+## report_view integrity
+
+`report_view` records who opened a customer report and when. Migration 0007 gave
+it an `organization_id`, RLS, and an append-only grant — before that it was the
+one table where viewing patterns crossed the tenant boundary.
+
+### Why the sweep is gated
+
+The migration found two rows referencing reports that no longer existed, behind a
+**validated cascade foreign key** where that should be impossible. The provenance
+was never established.
+
+That is the reason the cleanup asks permission. An access log quietly losing rows
+is a larger problem than the migration it blocks, and deleting the evidence is
+the wrong first move. So 0007 prints the counts, then **stops** if anything
+cannot resolve an organization:
+
+```
+report_view has 2 row(s) that cannot resolve an organization. Migration stopped.
+```
+
+It proceeds only with explicit approval:
+
+```bash
+PGOPTIONS="-c fitos.orphan_sweep=approved" psql -f db/migrations/0007_report_view_scope.sql
+```
+
+On a database with real fittings, **capture the rows before approving** —
+`select id, report_id, viewed_at from report_view where organization_id is null` —
+because the sweep is irreversible and the rollback migration cannot restore them.
+
+### Scope is proven, never inferred
+
+Backfill runs only through `report → fitting_session → organization_id`. A row
+that cannot be traced that way is left null and hits the gate. Assigning it a
+plausible tenant would file one retailer's access record under another's, which
+is worse than losing it.
+
+### The preflight is permanent
+
+`report_view_orphan_audit()` stays in the schema, so the same integrity question
+can be asked later without running a migration:
+
+```bash
+npm run db:preflight
+```
+
+It **refuses to run** as a role that does not bypass RLS. Under FORCE RLS —
+which applies to the table owner too — an ordinary caller would count only the
+rows it can already see and report zero orphans on a database full of them. An
+integrity check that inherits the visibility rules it is auditing is worse than
+none, because it reads as reassurance.
+
+### Append-only, with one window
+
+After 0007 there is no DELETE grant and no policy naming DELETE, so nothing can
+remove an access-log row. The migration's own sweep works only because it runs
+before RLS is enabled. A later sweep is therefore a deliberate, documented
+operation — disabling RLS, deleting, re-enabling — and not something that can
+happen by accident.
+
+### Lifecycle unchanged
+
+- Public `/r/<token>` is still authorized by token hash alone. It writes a view
+  row through `fitos_svc` because the viewer is anonymous; the organization comes
+  from the resolved fitting session, never from anything the viewer supplies.
+- A token that does not resolve logs nothing (`token.test.ts` P13).
+- Associate `/fitting/<id>/report` is still tenant-scoped by RLS.
+- The log stores `user_agent_class` and `referrer_class` — coarse buckets, never
+  a raw user agent, IP, or URL.
+
+---
+
 ## Identity peppers
 
 `FITOS_ORG_HASH_SECRET` and `FITOS_IDENTITY_SECRET` are **required**. There is no
