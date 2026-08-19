@@ -31,3 +31,33 @@ test('the global identity hash is derived from a different secret', () => {
 test('only the last four digits are kept in the clear', () => {
   assert.equal(last4('+15025551212'), '1212');
 });
+
+test('ID06 the seeded returning customer is still findable by phone', async () => {
+  // The guard against pepper drift. db/reset.sh and `npm run test` both source
+  // dev.env; if those ever diverge, the hash stored by the seed stops matching
+  // the hash computed at lookup — and the Day 5 returning-customer path fails in
+  // front of a store owner rather than here.
+  //
+  // The query is replicated rather than imported: queries.ts is `server-only`,
+  // which throws under node:test. What matters is the hash comparison, and that
+  // is identical either way.
+  const { withTenant } = await import('./client');
+  const { DEMO } = await import('../session');
+  const e164 = normalizePhone('612-555-4417')!;
+
+  const found = await withTenant(
+    { organizationId: DEMO.organizationId, locationId: DEMO.locationId },
+    async (c) => (await c.query(
+      `select phone_last4, phone_key_version from organization_customer
+        where phone_lookup_hash = $1 and deleted_at is null limit 1`,
+      [phoneLookupHash(DEMO.organizationId, e164)])).rows[0] ?? null);
+
+  assert.ok(found, 'seeded customer must resolve under the dev.env pepper');
+  assert.equal(found.phone_last4, '4417');
+  assert.equal(found.phone_key_version, 1);
+});
+
+test.after(async () => {
+  const { closePool } = await import('./client');
+  await closePool();
+});

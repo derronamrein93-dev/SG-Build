@@ -561,6 +561,63 @@ error_code · reported_at.
 
 ---
 
+## Identity peppers
+
+`FITOS_ORG_HASH_SECRET` and `FITOS_IDENTITY_SECRET` are **required**. There is no
+fallback, and adding one would be a regression: the previous
+`process.env.X ?? 'dev-only-secret'` shape meant a deployment that forgot the
+variable ran happily with an HMAC key published in this repository, producing
+hashes anyone could recompute, with nothing visibly wrong.
+
+`src/lib/config.ts` rejects a secret that is missing, empty, under 32 characters,
+or one of the known placeholders — including the two literal strings that used to
+be the defaults. Errors name the variable and never its value, because exception
+text reaches logs, error trackers, and pasted screenshots.
+
+**There is no bypass flag.** A `FITOS_ALLOW_DEV_SECRETS`-style escape is exactly
+what gets set on a staging box "temporarily" and is still set two years later.
+Local development supplies explicit values through `fitos/dev.env`, which
+`db/reset.sh` and `npm run test` both source, so the seeded demo customer and the
+test suite always agree. `identity.test.ts` ID06 fails if they ever drift.
+
+### Changing a pepper invalidates every hash derived from it
+
+A keyed hash cannot be recomputed from itself. Change `FITOS_ORG_HASH_SECRET` and
+every stored `phone_lookup_hash` becomes unmatchable: existing customers are no
+longer findable by phone, silently, with the record still present.
+
+| Situation | What to do |
+| --- | --- |
+| Local, dev, demo | Set the values, then `bash db/reset.sh`. The demo data is rebuilt under the new pepper. |
+| Any database with real fittings | **Do not change the pepper.** Rotate — see below. |
+
+### The rotation path, and why `phone_key_version` exists
+
+Rotation is possible only because `phone_encrypted` retains the E.164 alongside
+the hash. The path is: decrypt `phone_encrypted`, re-HMAC under the new pepper,
+write the new hash and set `phone_key_version = 2`, keeping both versions
+resolvable during the cutover.
+
+**Not implemented.** Rotation is an operations task with its own migration,
+backfill and verification, and it is deliberately not bundled with fail-fast
+validation. `PHONE_KEY_VERSION` in `src/lib/db/identity.ts` is the constant it
+will move.
+
+### `PGPASSWORD` — reviewed, deliberately unchanged
+
+`src/lib/db/client.ts` still has `process.env.PGPASSWORD ?? 'fitos'`. It is the
+same shape as the pepper defaults and is **lower stakes**: a wrong database
+password fails loudly at connection time rather than silently producing valid-
+looking output, and the fallback matches a local development role that exists
+only on a developer's machine. Making it fail fast would break `db/reset.sh` and
+every local workflow for a guard that the connection already provides.
+
+Proposed follow-up, not done here: require `PGPASSWORD` when `NODE_ENV` is
+`production`, leaving local development untouched. Recorded so it is a decision
+rather than an oversight.
+
+---
+
 ## Consent checks
 
 **Consent is read in exactly one place: `hasConsent()` in `src/lib/consent.ts`.

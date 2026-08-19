@@ -6,7 +6,7 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "test": "tsx --test $(find src -name '*.test.ts' | sort)",
+    "test": ". ./dev.env && tsx --test $(find src -name '*.test.ts' | sort)",
     "db:reset": "bash db/reset.sh",
     "db:isolation": "psql -h 127.0.0.1 -U fitos_owner -d fitos -q -v ON_ERROR_STOP=1 -f db/test/isolation.sql"
   },

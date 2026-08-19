@@ -144,15 +144,15 @@ test('AU10 the merge helper writes a valid, correlated event pair', async () => 
   });
 
   const rows = await withTenant(ctx, async (c) => (await c.query(
-    `select action, subject_id, target_id, metadata, created_at from audit_log
-      where correlation_id = $1 order by created_at`, [correlationId])).rows);
+    `select action, subject_id, target_id, metadata, seq from audit_log
+      where correlation_id = $1 order by seq`, [correlationId])).rows);
 
   assert.equal(rows.length, 2, 'both events must share one correlation id');
-  // Ordering within a single transaction is the point of clock_timestamp():
-  // under now() both rows carry transaction start time and the trail cannot say
-  // which came first.
-  assert.ok(rows[0].created_at < rows[1].created_at,
-    'events in one transaction must still be orderable');
+  // Ordering within a single transaction. Not created_at: clock_timestamp() is
+  // microsecond resolution and two inserts can tie, which made this assertion
+  // fail roughly one run in three. `seq` is monotonic and cannot tie.
+  assert.ok(BigInt(rows[0].seq) < BigInt(rows[1].seq),
+    'events in one transaction must be strictly orderable');
   assert.deepEqual(rows.map((r) => r.action),
     [AUDIT_ACTIONS.MERGE_REQUESTED, AUDIT_ACTIONS.MERGE_COMPLETED]);
   // Subject is the record that survives; target is the one merged away. Without

@@ -76,12 +76,21 @@ create table audit_log (
                       check (not audit_metadata_has_banned_key(metadata)),
 
   -- clock_timestamp(), not now(). now() is transaction start time, so two
-  -- events written in one transaction share a timestamp and the trail cannot be
-  -- ordered — which is exactly the case a merge produces (requested and
-  -- completed in one transaction). Still entirely server-generated: the column
-  -- is excluded from the INSERT grant below, so no caller can supply it.
-  created_at      timestamptz not null default clock_timestamp()
+  -- events written in one transaction would share a timestamp exactly. Still
+  -- entirely server-generated: the column is excluded from the INSERT grant
+  -- below, so no caller can supply or backdate it.
+  created_at      timestamptz not null default clock_timestamp(),
+
+  -- Ordering is `seq`, not `created_at`. clock_timestamp() is microsecond
+  -- resolution, and two inserts in one transaction can and do land in the same
+  -- microsecond — observed intermittently in AU10 before this column existed. A
+  -- timestamp answers "when"; only a sequence answers "in what order", and a
+  -- merge trail (requested → completed → reverted) is worthless without that.
+  -- GENERATED ALWAYS refuses a caller-supplied value outright.
+  seq             bigint generated always as identity
 );
+
+create unique index audit_log_seq on audit_log (seq);
 
 create index audit_log_org_time     on audit_log (organization_id, created_at desc);
 create index audit_log_subject      on audit_log (subject_type, subject_id);

@@ -3,7 +3,10 @@
 # created once by bootstrap_roles.sql as a superuser.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-: "${PGPASSWORD:=fitos}"; export PGPASSWORD
+# Identity peppers and connection settings. The application has no fallback for
+# the peppers — see src/lib/config.ts — so the seed cannot run without them.
+# Anything already exported wins over these defaults.
+. "$(pwd)/dev.env"
 su postgres -c "psql -q -f $(pwd)/db/bootstrap_roles.sql"
 su postgres -c "psql -q -c 'drop database if exists fitos' -c 'create database fitos owner fitos_owner'"
 for f in db/migrations/*.sql; do

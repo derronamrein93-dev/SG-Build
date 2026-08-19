@@ -17,22 +17,28 @@ layer, *What you told us*, and a token-gated public report route.
 | Token-gated public report route | ✅ 11 tests passing against Postgres |
 | Append-only tenant-scoped `audit_log` | ✅ 10 tests + 5 isolation assertions |
 | Consent chokepoint `hasConsent()` | ✅ 10 tests, fails closed |
+| Required identity peppers, no fallback | ✅ 11 tests, fails fast |
 | Fitting flow: dashboard → customer → intake → assessment → recommendation → report | ✅ walked end to end in a browser |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**87 tests across six suites**, plus 19 isolation assertions in psql.
+**99 tests across seven suites**, plus 19 isolation assertions in psql.
 
 ## Run it
 
 ```bash
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
-npm run test          # engine, identity, language, report-access, audit, consent  (87 tests)
+npm run test          # all suites  (99 tests) — sources dev.env for the peppers
 npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```
 
 `db/reset.sh` needs a superuser once to create the cluster roles
 (`db/bootstrap_roles.sql`). Everything after that runs as `fitos_owner`.
+
+**The identity peppers are required and have no fallback.** `dev.env` supplies
+explicit non-secret development values; `db/reset.sh` and `npm run test` both
+source it, so seeded data and computed hashes always agree. Anything already
+exported wins. See [05 · Identity peppers](../docs/05-data-model.md).
 
 ## How the pieces line up with the blueprint
 
