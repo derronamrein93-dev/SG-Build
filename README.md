@@ -5,6 +5,7 @@ This repo holds two things:
 | | |
 | --- | --- |
 | **[Product blueprint](docs/README.md)** | PRD, UX spec, recommendation engine, data model and build plan for **Stride Guide FitOS** — the store-side fitting interface. Start here. |
+| **[Device firmware](firmware/README.md)** | ESP32 firmware for the in-store scanner — pressure matrix, load cell, and the event API it posts to. |
 | **Landing page** (this file, below) | The marketing site at the repo root. |
 
 ---

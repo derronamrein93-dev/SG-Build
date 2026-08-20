@@ -1,0 +1,20 @@
+# PlatformIO build output and local metadata
+.pio/
+.pioenvs/
+.piolibdeps/
+.clang_complete
+.gcc-flags.json
+
+# Editor / IDE
+.vscode/
+.idea/
+compile_commands.json
+
+# Real credentials and per-unit provisioning.
+# config.h ships placeholders only; src/secrets.h overrides them locally and
+# must never be committed. See src/secrets.example.h.
+src/secrets.h
+secrets.h
+*.secrets.h
+.env
+.env.*
