@@ -101,12 +101,71 @@
 // 4. PRESSURE MATRIX GEOMETRY
 // ===========================================================================
 
-#define STRIDE_MATRIX_ROWS    25
-#define STRIDE_MATRIX_COLUMNS 25
-#define STRIDE_MATRIX_CELLS   (STRIDE_MATRIX_ROWS * STRIDE_MATRIX_COLUMNS)  // 625
+//
+// Confirmed production geometry. These are the canonical names; the
+// STRIDE_-prefixed aliases below exist so the rest of the firmware keeps one
+// naming style, but the numbers are defined exactly once, here.
 
-/** Physical sensel pitch, millimetres. Used for documentation/metadata only. */
-#define STRIDE_MATRIX_PITCH_MM 10.0f
+#define MATRIX_ROWS 25
+#define MATRIX_COLS 25
+
+/** Centre-to-centre spacing between adjacent copper traces, millimetres. */
+#define SENSOR_PITCH_MM 13.0f
+
+/** Width of each copper tape trace, millimetres. */
+#define COPPER_TRACE_WIDTH_MM 6.5f
+
+/**
+ * Centre-to-centre span of the grid, millimetres.
+ *
+ * N traces have N-1 intervals between them, NOT N. With 25 traces at 13 mm
+ * that is 24 x 13 = 312 mm, not 25 x 13 = 325 mm. Getting this wrong inflates
+ * the active area by one full pitch and puts every reconstructed sensor
+ * coordinate 13 mm out at the far edge. The static assertions at the foot of
+ * this file exist specifically to catch that mistake.
+ */
+#define GRID_CENTER_SPAN_X_MM ((MATRIX_COLS - 1) * SENSOR_PITCH_MM)  // 312.0
+#define GRID_CENTER_SPAN_Y_MM ((MATRIX_ROWS - 1) * SENSOR_PITCH_MM)  // 312.0
+
+/** Square grid, so both axes share one span. */
+#define GRID_CENTER_SPAN_MM GRID_CENTER_SPAN_X_MM  // 312.0
+
+/**
+ * Outside copper edge to outside copper edge, millimetres.
+ *
+ * The centre-to-centre span plus half a trace width of overhang at each end,
+ * i.e. span + one full trace width: 312 + 6.5 = 318.5 mm.
+ */
+#define ACTIVE_COPPER_WIDTH_MM  (GRID_CENTER_SPAN_X_MM + COPPER_TRACE_WIDTH_MM)   // 318.5
+#define ACTIVE_COPPER_HEIGHT_MM (GRID_CENTER_SPAN_Y_MM + COPPER_TRACE_WIDTH_MM)   // 318.5
+
+/** Bare substrate between adjacent traces, millimetres. */
+#define SENSOR_GAP_MM (SENSOR_PITCH_MM - COPPER_TRACE_WIDTH_MM)  // 6.5
+
+/** Physical platform, approximately 14 in square. */
+#define PLATFORM_SIZE_IN     14.0f
+#define PLATFORM_WIDTH_MM    (PLATFORM_SIZE_IN * 25.4f)  // 355.6
+#define PLATFORM_HEIGHT_MM   (PLATFORM_SIZE_IN * 25.4f)  // 355.6
+
+/** Substrate left over around the copper, per side, millimetres. */
+#define PLATFORM_MARGIN_X_MM ((PLATFORM_WIDTH_MM - ACTIVE_COPPER_WIDTH_MM) / 2.0f)
+#define PLATFORM_MARGIN_Y_MM ((PLATFORM_HEIGHT_MM - ACTIVE_COPPER_HEIGHT_MM) / 2.0f)
+
+/**
+ * Physical centre of sensel (row, column) in millimetres, measured from the
+ * centre of sensel (0, 0). This is the mapping the SaaS reconstructs from the
+ * geometry metadata shipped with every scan; the simulator uses it directly to
+ * place synthetic feet.
+ */
+#define SENSEL_X_MM(column) ((column) * SENSOR_PITCH_MM)
+#define SENSEL_Y_MM(row)    ((row) * SENSOR_PITCH_MM)
+
+// --- Aliases used by the rest of the firmware ------------------------------
+
+#define STRIDE_MATRIX_ROWS    MATRIX_ROWS
+#define STRIDE_MATRIX_COLUMNS MATRIX_COLS
+#define STRIDE_MATRIX_CELLS   (STRIDE_MATRIX_ROWS * STRIDE_MATRIX_COLUMNS)  // 625
+#define STRIDE_MATRIX_PITCH_MM SENSOR_PITCH_MM
 
 // ===========================================================================
 // 5. MULTIPLEXER BANKS (CD74HC4067)
@@ -360,20 +419,53 @@ constexpr uint8_t STRIDE_COL_MUX_CHANNELS[STRIDE_COL_MUX_COUNT] = {16, 9};
 #define STRIDE_SIM_NOISE_FLOOR 25
 
 /**
+ * Synthetic stance, in physical millimetres.
+ *
+ * The simulated feet are laid out in real millimetre coordinates and then
+ * sampled at the sensel positions given by SENSOR_PITCH_MM, so the synthetic
+ * footprint changes shape correctly if the pitch changes. Contact regions are
+ * placed as fractions of foot length, which keeps the anatomy right for any
+ * foot size.
+ */
+#define STRIDE_SIM_FOOT_LENGTH_MM       265.0f  ///< Heel to toe.
+#define STRIDE_SIM_STANCE_HALF_WIDTH_MM 65.0f   ///< Foot centre to mat centre.
+#define STRIDE_SIM_STANCE_JITTER_MM     20.0f   ///< Placement variation per scan.
+
+/**
+ * Contact blob sigmas and lateral offsets, millimetres. Anatomical, not
+ * per-sensel: at 13 mm pitch a 24 mm heel sigma is under two sensels wide.
+ */
+#define STRIDE_SIM_SIGMA_HEEL_MM     24.0f
+#define STRIDE_SIM_SIGMA_MIDFOOT_MM  18.0f
+#define STRIDE_SIM_SIGMA_METHEAD_MM  26.0f
+#define STRIDE_SIM_SIGMA_MTH1_MM     16.0f
+#define STRIDE_SIM_SIGMA_HALLUX_MM   12.0f
+#define STRIDE_SIM_SIGMA_TOES_MM     14.0f
+
+#define STRIDE_SIM_OFFSET_MIDFOOT_MM 20.0f  ///< Lateral column, away from midline.
+#define STRIDE_SIM_OFFSET_MTH1_MM    20.0f  ///< First metatarsal head, medial.
+#define STRIDE_SIM_OFFSET_HALLUX_MM  26.0f  ///< Big toe, medial.
+#define STRIDE_SIM_OFFSET_TOES_MM    12.0f  ///< Lesser toes, lateral.
+
+/**
  * Synthetic contact shaping.
  *
- * The foot regions are built from summed Gaussian blobs, which never quite
- * reach zero - without a floor, the tails put every sensel on the mat above
- * the active threshold and no simulated frame ever looks like a footprint.
- * Load at or below the floor is treated as no contact; what remains is
- * rescaled to the full range.
+ * The foot regions are summed Gaussian blobs, which never quite reach zero -
+ * without a floor, the tails put every sensel on the mat above the active
+ * threshold and no simulated frame ever looks like a footprint. Load at or
+ * below the floor is treated as no contact; what remains is rescaled to the
+ * full range.
  *
- * Floor 0.22 with blob scale 0.85 yields roughly 230-300 loaded sensels for a
- * two-foot stance on a 25x25 mat, with a clear arch gap and an empty border -
- * comfortably inside the validation window in section 7.
+ * Floor 0.15 at 13 mm pitch yields roughly 190-250 loaded sensels for a
+ * two-foot stance, with a clear arch gap and an empty border. At 1.69 cm2 per
+ * sensel that is 320-420 cm2 of contact, which is the right order for two
+ * adult feet, and sits comfortably inside the validation window in section 7.
+ * Retune this if the pitch or the blob sigmas change.
  */
-#define STRIDE_SIM_CONTACT_FLOOR 0.22f
-#define STRIDE_SIM_BLOB_SCALE    0.85f
+#define STRIDE_SIM_CONTACT_FLOOR 0.15f
+
+/** Global multiplier on every blob sigma, for tuning. */
+#define STRIDE_SIM_BLOB_SCALE 1.0f
 
 /** Simulated per-sensel acquisition cost, so scan timings stay realistic. */
 #define STRIDE_SIM_POINT_DELAY_US 20
@@ -412,6 +504,48 @@ constexpr uint8_t STRIDE_COL_MUX_CHANNELS[STRIDE_COL_MUX_COUNT] = {16, 9};
 // COMPILE-TIME CONSISTENCY CHECKS
 // ===========================================================================
 
+/** Constant-expression float comparison with a tolerance. */
+constexpr bool strideNear(float a, float b, float tolerance) {
+  return (a - b) < tolerance && (b - a) < tolerance;
+}
+
+// --- Geometry -------------------------------------------------------------
+
+static_assert(MATRIX_ROWS > 1 && MATRIX_COLS > 1,
+              "A grid needs at least two traces per axis to have a pitch");
+
+// The one that matters: N traces span N-1 intervals. If someone "simplifies"
+// GRID_CENTER_SPAN to MATRIX_COLS * SENSOR_PITCH_MM, this fails.
+static_assert(strideNear(GRID_CENTER_SPAN_X_MM,
+                         (MATRIX_COLS - 1) * SENSOR_PITCH_MM, 0.001f),
+              "Centre span must use MATRIX_COLS-1 intervals, not MATRIX_COLS");
+static_assert(GRID_CENTER_SPAN_X_MM < MATRIX_COLS * SENSOR_PITCH_MM,
+              "Centre span is a full pitch too large: 25 traces have 24 gaps");
+static_assert(GRID_CENTER_SPAN_Y_MM < MATRIX_ROWS * SENSOR_PITCH_MM,
+              "Centre span is a full pitch too large: 25 traces have 24 gaps");
+
+// Confirmed production figures, asserted literally so a change to pitch or
+// trace width that was not meant to move the active area is caught at build
+// time rather than discovered in reconstructed coordinates.
+static_assert(strideNear(GRID_CENTER_SPAN_MM, 312.0f, 0.001f),
+              "24 intervals x 13.0 mm must be 312.0 mm");
+static_assert(strideNear(ACTIVE_COPPER_WIDTH_MM, 318.5f, 0.001f),
+              "312.0 mm span + 6.5 mm trace width must be 318.5 mm");
+static_assert(strideNear(ACTIVE_COPPER_HEIGHT_MM, 318.5f, 0.001f),
+              "312.0 mm span + 6.5 mm trace width must be 318.5 mm");
+
+static_assert(COPPER_TRACE_WIDTH_MM < SENSOR_PITCH_MM,
+              "Trace width must be less than pitch or adjacent traces short");
+static_assert(SENSOR_GAP_MM > 0.0f, "Traces need bare substrate between them");
+
+static_assert(ACTIVE_COPPER_WIDTH_MM <= PLATFORM_WIDTH_MM &&
+                  ACTIVE_COPPER_HEIGHT_MM <= PLATFORM_HEIGHT_MM,
+              "Active copper does not fit on the physical platform");
+static_assert(PLATFORM_MARGIN_X_MM > 0.0f && PLATFORM_MARGIN_Y_MM > 0.0f,
+              "Platform leaves no margin around the copper");
+
+// --- Multiplexer banks ------------------------------------------------------
+
 /** Sum of a compile-time channel table. C++11-compatible (recursive). */
 constexpr uint16_t strideSumChannels(const uint8_t *table, uint8_t count) {
   return count == 0 ? 0
@@ -419,8 +553,6 @@ constexpr uint16_t strideSumChannels(const uint8_t *table, uint8_t count) {
                                             strideSumChannels(table, count - 1));
 }
 
-static_assert(STRIDE_MATRIX_ROWS > 0 && STRIDE_MATRIX_COLUMNS > 0,
-              "Matrix dimensions must be positive");
 static_assert(strideSumChannels(STRIDE_ROW_MUX_CHANNELS, STRIDE_ROW_MUX_COUNT) >=
                   STRIDE_MATRIX_ROWS,
               "Row mux bank does not expose enough channels for STRIDE_MATRIX_ROWS");

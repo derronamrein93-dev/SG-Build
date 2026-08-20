@@ -195,14 +195,14 @@ class PressureMatrix {
   void releaseRows();
 
 #if SIMULATION_MODE
-  /** Synthesise one sensel of a two-foot stance. */
+  /** Synthesise one sensel of a two-foot stance, placed in millimetres. */
   uint16_t simulatePoint(uint8_t row, uint8_t column) const;
   void beginSimulatedStance();
 
-  float simCentreCol_[2];  ///< Column centre of each foot.
-  float simRowOffset_;     ///< Fore/aft placement on the mat.
-  float simLoadScale_;     ///< Overall load, tracks the simulated weight.
-  bool simUnloaded_;       ///< Synthesise an empty mat (used when zeroing).
+  float simFootCentreXMm_[2];  ///< Lateral centre of each foot, millimetres.
+  float simFootOriginYMm_;     ///< Toe end of the feet, millimetres.
+  float simLoadScale_;         ///< Overall load, tracks the simulated weight.
+  bool simUnloaded_;           ///< Synthesise an empty mat (used when zeroing).
 #endif
 
   Calibration *calibration_;

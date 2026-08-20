@@ -47,12 +47,19 @@ const MuxDevice *columnDeviceTable() {
 }
 
 #if SIMULATION_MODE
-/** Unit-height Gaussian contact blob. */
-float blob(float row, float column, float centreRow, float centreCol,
-           float sigma, float weight) {
-  const float dr = row - centreRow;
-  const float dc = column - centreCol;
-  const float d2 = dr * dr + dc * dc;
+/**
+ * Unit-height Gaussian contact blob, in physical millimetres.
+ *
+ * Every coordinate here is millimetres on the mat, never sensel indices: the
+ * synthetic anatomy is a physical thing and must not move when the pitch
+ * changes.
+ */
+float blob(float xMm, float yMm, float centreXMm, float centreYMm,
+           float sigmaMm, float weight) {
+  const float dx = xMm - centreXMm;
+  const float dy = yMm - centreYMm;
+  const float d2 = dx * dx + dy * dy;
+  const float sigma = sigmaMm * STRIDE_SIM_BLOB_SCALE;
   return weight * expf(-d2 / (2.0f * sigma * sigma));
 }
 
@@ -212,9 +219,11 @@ PressureMatrix::PressureMatrix(Calibration *calibration)
       scanning_(false),
       initialized_(false) {
 #if SIMULATION_MODE
-  simCentreCol_[0] = STRIDE_MATRIX_COLUMNS * 0.30f;
-  simCentreCol_[1] = STRIDE_MATRIX_COLUMNS * 0.70f;
-  simRowOffset_ = 0.0f;
+  const float centreXMm = GRID_CENTER_SPAN_X_MM * 0.5f;
+  simFootCentreXMm_[0] = centreXMm - STRIDE_SIM_STANCE_HALF_WIDTH_MM;
+  simFootCentreXMm_[1] = centreXMm + STRIDE_SIM_STANCE_HALF_WIDTH_MM;
+  simFootOriginYMm_ =
+      (GRID_CENTER_SPAN_Y_MM - STRIDE_SIM_FOOT_LENGTH_MM) * 0.5f;
   simLoadScale_ = 1.0f;
   simUnloaded_ = false;
 #endif
@@ -245,8 +254,14 @@ void PressureMatrix::describe(char *out, size_t len) const {
   if (out == nullptr || len == 0) {
     return;
   }
-  snprintf(out, len, "%dx%d (%d cells), row mux x%u (%u lines), col mux x%u (%u lines)",
-           STRIDE_MATRIX_ROWS, STRIDE_MATRIX_COLUMNS, STRIDE_MATRIX_CELLS,
+  snprintf(out, len,
+           "%dx%d (%d cells), %.1f mm pitch, %.1f mm trace, %.1f x %.1f mm "
+           "active copper; row mux x%u (%u lines), col mux x%u (%u lines)",
+           MATRIX_ROWS, MATRIX_COLS, STRIDE_MATRIX_CELLS,
+           static_cast<double>(SENSOR_PITCH_MM),
+           static_cast<double>(COPPER_TRACE_WIDTH_MM),
+           static_cast<double>(ACTIVE_COPPER_WIDTH_MM),
+           static_cast<double>(ACTIVE_COPPER_HEIGHT_MM),
            static_cast<unsigned>(rowBank_.deviceCount()),
            static_cast<unsigned>(rowBank_.lineCount()),
            static_cast<unsigned>(columnBank_.deviceCount()),
@@ -520,15 +535,23 @@ FrameValidation PressureMatrix::validatePressureFrame(const PressureFrame &frame
 #if SIMULATION_MODE
 
 void PressureMatrix::beginSimulatedStance() {
-  // A slightly different stance each scan: feet shift, load varies. Enough
-  // variation that downstream code cannot quietly depend on a fixed frame.
-  const float spread = STRIDE_MATRIX_COLUMNS * 0.20f;
-  const float centre = (STRIDE_MATRIX_COLUMNS - 1) / 2.0f;
-  const float jitter = (randomUnit() - 0.5f) * 1.5f;
+  // A slightly different stance each scan: feet shift on the mat, fore/aft
+  // placement moves, overall load varies. Enough variation that downstream
+  // code cannot quietly depend on a fixed frame. All in millimetres.
+  const float centreXMm = GRID_CENTER_SPAN_X_MM * 0.5f;
+  const float jitterXMm =
+      (randomUnit() - 0.5f) * STRIDE_SIM_STANCE_JITTER_MM;
 
-  simCentreCol_[0] = centre - spread + jitter;
-  simCentreCol_[1] = centre + spread + jitter;
-  simRowOffset_ = (randomUnit() - 0.5f) * 2.0f;
+  simFootCentreXMm_[0] =
+      centreXMm - STRIDE_SIM_STANCE_HALF_WIDTH_MM + jitterXMm;
+  simFootCentreXMm_[1] =
+      centreXMm + STRIDE_SIM_STANCE_HALF_WIDTH_MM + jitterXMm;
+
+  // Centre the foot along the mat, then shift it fore or aft a little.
+  simFootOriginYMm_ =
+      (GRID_CENTER_SPAN_Y_MM - STRIDE_SIM_FOOT_LENGTH_MM) * 0.5f +
+      (randomUnit() - 0.5f) * STRIDE_SIM_STANCE_JITTER_MM;
+
   simLoadScale_ = 0.80f + randomUnit() * 0.35f;
   simUnloaded_ = false;
 }
@@ -540,34 +563,42 @@ uint16_t PressureMatrix::simulatePoint(uint8_t row, uint8_t column) const {
     return noise;
   }
 
-  const float r = static_cast<float>(row) + simRowOffset_;
-  const float c = static_cast<float>(column);
+  // Sensel index -> physical position on the mat. This is the only place the
+  // simulator touches pitch, and it is the same mapping the SaaS reconstructs
+  // from the geometry metadata in each event.
+  const float xMm = SENSEL_X_MM(column);
+  const float yMm = SENSEL_Y_MM(row);
 
-  // Rows run toes (0) to heel (ROWS-1). Contact regions are placed as
-  // fractions of the mat so the shape survives a change of geometry.
-  const float rows = static_cast<float>(STRIDE_MATRIX_ROWS);
-  const float heelRow = rows * 0.82f;
-  const float midRow = rows * 0.58f;
-  const float metRow = rows * 0.30f;
-  const float toeRow = rows * 0.12f;
-  // Keep blob sizes proportional if the geometry changes.
-  const float scale = (rows / 25.0f) * STRIDE_SIM_BLOB_SCALE;
+  // Contact regions as fractions of foot length, measured from the toe end.
+  // Rows run toes (0) to heel (ROWS-1).
+  const float originYMm = simFootOriginYMm_;
+  const float lengthMm = STRIDE_SIM_FOOT_LENGTH_MM;
+  const float toeYMm = originYMm + 0.08f * lengthMm;
+  const float metYMm = originYMm + 0.27f * lengthMm;
+  const float midYMm = originYMm + 0.56f * lengthMm;
+  const float heelYMm = originYMm + 0.83f * lengthMm;
 
   float load = 0.0f;
   for (uint8_t foot = 0; foot < 2; ++foot) {
-    const float centreCol = simCentreCol_[foot];
+    const float centreXMm = simFootCentreXMm_[foot];
     // Medial (big-toe) side faces the body's midline: right for the left
     // foot, left for the right foot.
     const float medial = foot == 0 ? 1.0f : -1.0f;
 
-    load += blob(r, c, heelRow, centreCol, 2.6f * scale, 1.00f);
-    load += blob(r, c, midRow, centreCol - medial * 1.7f, 2.0f * scale, 0.40f);
-    load += blob(r, c, metRow, centreCol, 2.9f * scale, 0.85f);
-    load += blob(r, c, metRow - 0.6f * scale, centreCol + medial * 2.0f,
-                 1.9f * scale, 0.55f);
-    load += blob(r, c, toeRow, centreCol + medial * 1.9f, 1.3f * scale, 0.50f);
-    load += blob(r, c, toeRow + 0.4f * scale, centreCol - medial * 1.1f,
-                 1.5f * scale, 0.22f);
+    // Heel.
+    load += blob(xMm, yMm, centreXMm, heelYMm, STRIDE_SIM_SIGMA_HEEL_MM, 1.00f);
+    // Lateral column through the midfoot - the arch itself stays clear.
+    load += blob(xMm, yMm, centreXMm - medial * STRIDE_SIM_OFFSET_MIDFOOT_MM,
+                 midYMm, STRIDE_SIM_SIGMA_MIDFOOT_MM, 0.40f);
+    // Metatarsal heads, with the first head carrying more.
+    load += blob(xMm, yMm, centreXMm, metYMm, STRIDE_SIM_SIGMA_METHEAD_MM, 0.85f);
+    load += blob(xMm, yMm, centreXMm + medial * STRIDE_SIM_OFFSET_MTH1_MM,
+                 metYMm - 0.02f * lengthMm, STRIDE_SIM_SIGMA_MTH1_MM, 0.55f);
+    // Hallux and lesser toes.
+    load += blob(xMm, yMm, centreXMm + medial * STRIDE_SIM_OFFSET_HALLUX_MM,
+                 toeYMm, STRIDE_SIM_SIGMA_HALLUX_MM, 0.50f);
+    load += blob(xMm, yMm, centreXMm - medial * STRIDE_SIM_OFFSET_TOES_MM,
+                 toeYMm + 0.02f * lengthMm, STRIDE_SIM_SIGMA_TOES_MM, 0.22f);
   }
 
   load *= simLoadScale_;

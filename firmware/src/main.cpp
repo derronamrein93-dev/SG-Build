@@ -142,7 +142,7 @@ void enterError(const char *reason) {
 // ===========================================================================
 
 void printBootReport() {
-  char buffer[160];
+  char buffer[224];
 
   Serial.println();
   Serial.println(F("========================================"));
@@ -276,7 +276,7 @@ void reportUploadOutcome() {
 // ===========================================================================
 
 void printInfo() {
-  char buffer[160];
+  char buffer[224];
   Serial.printf("[info] state=%s uptime=%lus heap=%u\n", stateName(gState),
                 static_cast<unsigned long>(millis() / 1000),
                 static_cast<unsigned>(ESP.getFreeHeap()));

@@ -9,7 +9,7 @@
 namespace {
 
 /** Rough serialised size of an event, so String growth does not thrash heap. */
-constexpr size_t kEventReserveBytes = STRIDE_MATRIX_CELLS * 5 + 768;
+constexpr size_t kEventReserveBytes = STRIDE_MATRIX_CELLS * 5 + 1280;
 
 bool isPlaceholder(const char *value) {
   return value != nullptr && strncmp(value, "CHANGE_ME", 9) == 0;
@@ -245,8 +245,27 @@ String ApiClient::buildScanEvent(const PressureFrame &frame, float weightKg,
   metadata["clock_synced"] = clockSynced_;
   metadata["uptime_ms"] = millis();
   metadata["wifi_rssi"] = signalStrength();
-  metadata["matrix_pitch_mm"] = serialized(String(STRIDE_MATRIX_PITCH_MM, 1));
   metadata["adc_max_value"] = STRIDE_ADC_MAX_VALUE;
+
+  // Physical geometry, so the receiver can reconstruct sensor coordinates:
+  // sensel (row, column) sits at (column * pitch_mm, row * pitch_mm) from the
+  // centre of sensel (0, 0). Shipped per event rather than assumed server-side,
+  // because a future hardware revision may change the pitch.
+  JsonObject geometry = metadata["geometry"].to<JsonObject>();
+  geometry["rows"] = MATRIX_ROWS;
+  geometry["columns"] = MATRIX_COLS;
+  geometry["pitch_mm"] = serialized(String(SENSOR_PITCH_MM, 2));
+  geometry["trace_width_mm"] = serialized(String(COPPER_TRACE_WIDTH_MM, 2));
+  geometry["center_span_x_mm"] = serialized(String(GRID_CENTER_SPAN_X_MM, 2));
+  geometry["center_span_y_mm"] = serialized(String(GRID_CENTER_SPAN_Y_MM, 2));
+  geometry["active_copper_width_mm"] =
+      serialized(String(ACTIVE_COPPER_WIDTH_MM, 2));
+  geometry["active_copper_height_mm"] =
+      serialized(String(ACTIVE_COPPER_HEIGHT_MM, 2));
+  geometry["platform_width_mm"] = serialized(String(PLATFORM_WIDTH_MM, 1));
+  geometry["platform_height_mm"] = serialized(String(PLATFORM_HEIGHT_MM, 1));
+  geometry["origin"] = "sensel_0_0_center";
+  geometry["order"] = "row_major";
   metadata["min_value"] = frame.minValue;
   metadata["max_value"] = frame.maxValue;
   metadata["average_value"] = serialized(String(frame.averageValue, 1));

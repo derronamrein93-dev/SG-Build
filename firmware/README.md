@@ -30,6 +30,35 @@ counts plus the calibration version needed to interpret them.
 
 ---
 
+## Physical geometry
+
+Confirmed production geometry, defined once in `config.h` §4 and shipped with
+every scan so the SaaS can reconstruct sensor coordinates:
+
+| Constant | Value |
+| --- | --- |
+| `MATRIX_ROWS` × `MATRIX_COLS` | 25 × 25 (625 sensels) |
+| `SENSOR_PITCH_MM` | 13.0 mm centre-to-centre |
+| `COPPER_TRACE_WIDTH_MM` | 6.5 mm |
+| `SENSOR_GAP_MM` | 6.5 mm bare substrate between traces |
+| `GRID_CENTER_SPAN_MM` | **312.0 mm** (24 × 13.0) |
+| `ACTIVE_COPPER_WIDTH_MM` / `_HEIGHT_MM` | **318.5 mm** (312.0 + 6.5) |
+| `PLATFORM_WIDTH_MM` / `_HEIGHT_MM` | 355.6 mm (14 in) |
+| `PLATFORM_MARGIN_X_MM` / `_Y_MM` | 18.55 mm per side |
+
+> **25 traces have 24 intervals, not 25.** The centre-to-centre span is
+> 24 × 13 = 312 mm, *not* 25 × 13 = 325 mm. Using the trace count instead of
+> the interval count inflates the active area by a full pitch and puts every
+> reconstructed coordinate 13 mm out at the far edge. Five `static_assert`s at
+> the foot of `config.h` fail the build if anyone reintroduces that mistake,
+> and they also check that the trace width is smaller than the pitch (or
+> adjacent traces short) and that the copper fits on the platform with margin
+> to spare.
+
+Sensel `(row, column)` sits at `(column × 13.0, row × 13.0)` mm from the centre
+of sensel `(0, 0)` — `SENSEL_X_MM()` / `SENSEL_Y_MM()`. Sensel (24, 24) is
+therefore at (312.0, 312.0) mm. Each sensel covers 1.69 cm².
+
 ## Architecture
 
 ```
@@ -162,9 +191,14 @@ With simulation on, no sensor needs to be connected:
 - The pressure matrix synthesises **two foot-shaped contact regions** — heel,
   lateral midfoot, metatarsal heads, hallux and lesser toes — from summed
   Gaussian blobs, with a contact floor that leaves the rest of the mat empty.
-  Foot placement, stance and overall load vary from scan to scan, so nothing
-  downstream can quietly depend on a fixed frame. A typical simulated stance
-  loads 230–300 of the 625 sensels and passes validation.
+  The feet are laid out in **physical millimetre coordinates** (a 265 mm foot,
+  stance ±65 mm from the mat centre, blob sigmas in mm) and then sampled at the
+  sensel positions given by `SENSOR_PITCH_MM`, so the synthetic footprint
+  rescales correctly if the pitch ever changes rather than being drawn in
+  sensel units. Foot placement, stance and overall load vary from scan to scan,
+  so nothing downstream can quietly depend on a fixed frame. At 13 mm pitch a
+  typical stance loads 190–250 of the 625 sensels — 320–420 cm² of contact, the
+  right order for two adult feet — and passes validation.
 - The load cell returns a plausible standing weight between
   `STRIDE_SIM_WEIGHT_MIN_KG` and `STRIDE_SIM_WEIGHT_MAX_KG`, converted back
   through the active calibration so `t` and `c<kg>` behave as they do on
@@ -187,6 +221,7 @@ All of them are in **`src/config.h`**:
 | Section | Contents |
 | --- | --- |
 | §3 | Status LED, scan button |
+| §4 | Matrix geometry: pitch, trace width, spans, platform size |
 | §5 | Mux banks: select, enable and signal pins; per-device channel counts |
 | §6 | ADC resolution, attenuation, oversampling |
 | §8 | HX711 `DOUT`/`SCK`, gain, sample counts |
@@ -258,10 +293,19 @@ Headers: `Content-Type: application/json`, `Authorization: Bearer <key>`,
     "clock_synced": true,
     "uptime_ms": 84213,
     "wifi_rssi": -54,
-    "matrix_pitch_mm": 10.0,
     "adc_max_value": 4095,
-    "min_value": 0, "max_value": 3422, "average_value": 545.6,
-    "active_sensor_count": 269, "saturated_count": 0,
+    "geometry": {
+      "rows": 25, "columns": 25,
+      "pitch_mm": 13.00,
+      "trace_width_mm": 6.50,
+      "center_span_x_mm": 312.00, "center_span_y_mm": 312.00,
+      "active_copper_width_mm": 318.50, "active_copper_height_mm": 318.50,
+      "platform_width_mm": 355.6, "platform_height_mm": 355.6,
+      "origin": "sensel_0_0_center",
+      "order": "row_major"
+    },
+    "min_value": 0, "max_value": 3422, "average_value": 410.2,
+    "active_sensor_count": 221, "saturated_count": 0,
     "frame_valid": true
   }
 }
@@ -271,6 +315,13 @@ Headers: `Content-Type: application/json`, `Authorization: Bearer <key>`,
 ADC counts: `index = row * columns + column`. Row 0 is the toe end. Values are
 counts, not pressure units — converting them needs the calibration record
 named by `calibration_version`, which lives server-side.
+
+**`metadata.geometry`** carries what is needed to turn an index into a physical
+position: sensel `(row, column)` is at `(column × pitch_mm, row × pitch_mm)` mm
+from the centre of sensel `(0, 0)`, which is what `origin` and `order` name. It
+is sent per event rather than assumed server-side, so a hardware revision that
+changes the pitch cannot silently corrupt every stored scan. Note that
+`center_span_x_mm` is `(columns - 1) × pitch_mm`, not `columns × pitch_mm`.
 
 **`customer_id`** is explicitly `null` rather than omitted when the customer
 has not been identified. The receiver never has to guess which case it is.
@@ -335,7 +386,7 @@ Stride Guide Device
 Firmware:        0.1.0 (schema 1.0, hardware breadboard-r0)
 Device ID:       dev-esp32-unprovisioned (serial SG-DEV-000000)
 Simulation Mode: ON - synthetic sensor data, no hardware required
-Pressure Matrix: 25x25 (625 cells), row mux x2 (25 lines), col mux x2 (25 lines)
+Pressure Matrix: 25x25 (625 cells), 13.0 mm pitch, 6.5 mm trace, 318.5 x 318.5 mm active copper; row mux x2 (25 lines), col mux x2 (25 lines)
 HX711:           simulated (55-105 kg), no hardware required
 Wi-Fi:           CHANGE_ME_SSID (not connected)
 API:             POST https://api.example.invalid/api/v1/events
@@ -351,8 +402,8 @@ During a scan:
 ```
 Scan started
 Weight: 78.42 kg
-Active sensors: 269 / 625
-Pressure min/max: 0 / 3422 (avg 545.6, 0 saturated)
+Active sensors: 221 / 625
+Pressure min/max: 0 / 3422 (avg 410.2, 0 saturated)
 Scan duration: 312 ms
 Upload status: OK (HTTP 202)
 Scan complete
@@ -366,7 +417,8 @@ Tracked in-tree as `TODO(...)` markers — `grep -rn "TODO(" src/`.
 
 - **`TODO(pcb)`** — replace the bring-up GPIO map in `config.h` §5 and §8 with
   the production assignment; add a `stride_pcb` build environment. Confirm the
-  mux device count and per-device channel counts against the real board.
+  mux device count and per-device channel counts against the real board. The
+  §4 geometry is already confirmed and needs no further change.
 - **`TODO(calibration)`** — characterise Velostat response (non-linearity,
   creep, temperature drift) and replace the single active threshold with a
   per-unit curve. Measure and correct matrix crosstalk: resistive matrices leak
@@ -386,3 +438,10 @@ Tracked in-tree as `TODO(...)` markers — `grep -rn "TODO(" src/`.
 Also outstanding: a scan trigger appropriate to the retail floor rather than a
 dev-board button, and a decision on whether the device or the tablet owns the
 association between a scan and a fitting session.
+
+One consequence of the confirmed geometry is worth stating plainly: the active
+area is 318.5 mm square, and an adult foot is roughly 260–280 mm long by 95–100
+mm wide. Two feet side by side need about 200 mm of width, so they fit, but
+with little room for a wide stance or a large foot placed off-centre. If
+two-foot capture at full stance width matters, that is a platform-size
+conversation rather than a firmware one.
