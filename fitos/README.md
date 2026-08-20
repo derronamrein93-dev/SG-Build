@@ -35,6 +35,7 @@ npm run verify        # reset → tests → preflight → isolation → build �
 npm run test          # all suites  (153 tests) — sources dev.env for the peppers
 npm run e2e           # six browser golden paths against a running server
 npm run e2e:full      # reset, build, start, run the golden paths, stop
+npm run deploy:bundle # regenerate deploy/schema-bundle.sql from db/migrations/
 npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```
@@ -108,8 +109,10 @@ Deliberately, per [01 §9](../docs/01-prd.md):
 
 - **Auth.** `src/lib/session.ts` returns a seeded context; real auth plugs in
   there and nowhere else, because every query already goes through `withTenant`.
-- **Supabase deployment.** The schema is plain Postgres and the GUC helpers map
-  to JWT claims, but nothing has been run against a Supabase project.
+- **Deployment.** Nothing is hosted: no Vercel project, no remote database. The
+  bundle and the runbook are ready in [`deploy/`](deploy/README.md), but the
+  role model needs a decision first — `fitos_svc` requires `BYPASSRLS`, which
+  Supabase's `postgres` role cannot grant.
 - Follow-up completion UI, outcome capture sheet, pilot-feedback sheet, override
   controls, CSV import, print stylesheet polish, email delivery, QR sharing.
 - Hardware ingest — `scan` and `scan_derivation` exist and are unused, which is

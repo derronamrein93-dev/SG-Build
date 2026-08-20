@@ -11,10 +11,12 @@
     "db:isolation": "psql -h 127.0.0.1 -U fitos_owner -d fitos -q -v ON_ERROR_STOP=1 -f db/test/isolation.sql",
     "db:preflight": "psql -h 127.0.0.1 -U fitos_owner -d fitos -q -v ON_ERROR_STOP=1 -c \"set role fitos_svc\" -c 'select * from report_view_orphan_audit()'",
     "db:preflight-test": "psql -h 127.0.0.1 -U fitos_owner -d fitos -q -v ON_ERROR_STOP=1 -f db/test/preflight.sql",
-    "verify": "bash db/reset.sh && npm run test && npm run db:preflight-test && npm run db:isolation && npm run build && bash db/reset.sh",
+    "verify": "bash db/reset.sh && npm run test && npm run db:preflight-test && npm run db:isolation && npm run deploy:check && npm run build && bash db/reset.sh",
     "demo": "bash db/reset.sh && npm run build && npm start",
     "e2e": "node e2e/golden-paths.mjs",
-    "e2e:full": "bash db/reset.sh && npm run build && (npm start & echo $! > /tmp/fitos-e2e.pid) && node e2e/wait-for-server.mjs && node e2e/golden-paths.mjs; s=$?; kill $(cat /tmp/fitos-e2e.pid) 2>/dev/null; exit $s"
+    "e2e:full": "bash db/reset.sh && npm run build && (npm start & echo $! > /tmp/fitos-e2e.pid) && node e2e/wait-for-server.mjs && node e2e/golden-paths.mjs; s=$?; kill $(cat /tmp/fitos-e2e.pid) 2>/dev/null; exit $s",
+    "deploy:bundle": "bash deploy/build-bundle.sh",
+    "deploy:check": "bash deploy/check-bundle.sh"
   },
   "dependencies": {
     "next": "^15.5.23",
