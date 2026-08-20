@@ -16,6 +16,9 @@
 export const ANALYTICS_EVENTS = [
   'fitting_started',
   'intake_completed',
+  'concern_screen_shown',
+  'concern_screen_completed',
+  'concern_screen_skipped',
   'scan_started',
   'recommendation_viewed',
   'recommendation_overridden',
@@ -32,6 +35,10 @@ export const ALLOWED_KEYS = [
   'visit_number', 'intake_mode', 'evidence_strength', 'override_reason',
   'intake_duration_seconds', 'time_to_recommendation_ms',
   'question_count', 'answered_yes_count', 'detail_opened',
+  // Counts and a flag only. `reported_concern_other` is customer speech and is
+  // deliberately absent from this list, so passing it would be dropped rather
+  // than sent — see concerns.test.ts CN16.
+  'concern_count', 'concern_other_used',
 ] as const;
 
 export type AnalyticsPayload = Partial<Record<(typeof ALLOWED_KEYS)[number], string | number | boolean | null>>;

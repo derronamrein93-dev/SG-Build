@@ -71,8 +71,26 @@ async function answerAll(p, value) {
   return seen;
 }
 
+/** Leave the optional concern screen if it is showing. */
+async function passConcernScreen(p, { select = [], skip = false } = {}) {
+  const here = await p.$('button:has-text("Continue to Scan")');
+  if (!here) return false;
+  for (const v of select) {
+    await p.click(`button[data-concern="${v}"]`);
+    await p.waitForTimeout(150);
+  }
+  await p.click(skip ? 'button:has-text("Skip")' : 'button:has-text("Continue to Scan")');
+  await p.waitForTimeout(900);
+  return true;
+}
+
 async function toReport(p) {
-  await p.click('button:has-text("Start Scan")');
+  // Either the concern screen is showing (and leaving it enters the scan), or
+  // Start Scan is on the last question. Both land on measurements.
+  if (!(await passConcernScreen(p, { skip: true }))) {
+    const scan = await p.$('button:has-text("Start Scan")');
+    if (scan) await scan.click();
+  }
   await p.waitForTimeout(1000);
   await p.click('button:has-text("Recommendation")');
   await p.waitForTimeout(2500);
@@ -115,6 +133,8 @@ async function pathAllNo() {
   const p = await newPage();
   await newCustomer(p, uniquePhone());
   await answerAll(p, 'no');
+  check('all-No is never shown the concern screen',
+    !(await p.$('button:has-text("Continue to Scan")')));
   await p.click('button:has-text("Start Scan")');
   await p.waitForTimeout(1000);
   check('all-No proceeds to measurements', /Scan/.test(await p.textContent('h1')));
@@ -125,7 +145,7 @@ async function pathAllYes() {
   console.log('\n4 · all-Yes intake reaches the scan, detail optional');
   const p = await newPage();
   await newCustomer(p, uniquePhone());
-  // Answer the first Yes and confirm Add detail appears but is skippable.
+
   await p.click('button[data-answer="yes"]');
   await p.waitForTimeout(320);
   // A real assertion, not a tautology. The first version of this check was
@@ -135,16 +155,21 @@ async function pathAllYes() {
   check('a Yes does not auto-advance past its own detail option',
     /Question 1 of/.test(await p.textContent('.card .overline')));
 
-  for (let i = 0; i < 3; i++) {
-    const cont = await p.$('button:has-text("Continue")');
-    if (cont) { await cont.click(); await p.waitForTimeout(300); }
-    const yes = await p.$('button[data-answer="yes"]');
-    if (yes) { await yes.click(); await p.waitForTimeout(320); }
-  }
-  const scan = await p.$('button:has-text("Start Scan")');
-  check('all-Yes proceeds without entering any detail', Boolean(scan));
-  if (scan) { await scan.click(); await p.waitForTimeout(1000); }
-  check('all-Yes reaches measurements', /Scan/.test(await p.textContent('h1')));
+  await p.click('button:has-text("Continue")');
+  await p.waitForTimeout(300);
+  await answerAll(p, 'yes');            // remaining questions, Continue handled
+
+  check('all-Yes reaches the optional concern screen',
+    Boolean(await p.$('button:has-text("Continue to Scan")')));
+  // Skip goes straight into the scan — there is no intermediate Start Scan
+  // button, because a skipped optional screen should not cost an extra tap.
+  // (An earlier version of this check looked for one and failed while the
+  // product was behaving correctly.)
+  await passConcernScreen(p, { skip: true });
+  check('all-Yes proceeds without entering any detail',
+    /Scan/.test(await p.textContent('h1')));
+  check('nothing was typed anywhere in the all-Yes path',
+    (await p.$$eval('input[type="text"]', (els) => els.filter((e) => e.value).length)) === 0);
   await p.close();
 }
 
@@ -175,6 +200,85 @@ async function pathTokenReportOpen() {
   await p.close();
 }
 
+async function pathReportedConcerns() {
+  console.log('\n7 · reported concerns: Q1 Yes, select two, continue, scan, report');
+  const p = await newPage();
+  await newCustomer(p, uniquePhone());
+
+  await p.click('button[data-answer="yes"]');           // Q1 Yes
+  await p.waitForTimeout(320);
+  await p.click('button:has-text("Continue")');         // past the detail offer
+  await p.waitForTimeout(300);
+  await p.click('button[data-answer="no"]');            // Q2
+  await p.waitForTimeout(320);
+  await p.click('button[data-answer="no"]');            // Q3
+  await p.waitForTimeout(320);
+  await p.click('button:has-text("Continue")');         // leave the questions
+  await p.waitForTimeout(900);
+
+  check('the concern screen appears after a Yes',
+    Boolean(await p.$('button:has-text("Continue to Scan")')));
+  const chips = await p.$$eval('button[data-concern]', (els) => els.length);
+  check('all twelve concern chips are present', chips === 12, `saw ${chips}`);
+
+  // Selection state must be obvious, and a second tap must clear it.
+  await p.click('button[data-concern="plantar_fasciitis"]');
+  await p.waitForTimeout(150);
+  check('a selected chip is marked pressed',
+    (await p.getAttribute('button[data-concern="plantar_fasciitis"]', 'aria-pressed')) === 'true');
+  await p.click('button[data-concern="plantar_fasciitis"]');
+  await p.waitForTimeout(150);
+  check('a second tap deselects',
+    (await p.getAttribute('button[data-concern="plantar_fasciitis"]', 'aria-pressed')) === 'false');
+
+  await p.click('button[data-concern="plantar_fasciitis"]');
+  await p.click('button[data-concern="heel_pain"]');
+  await p.waitForTimeout(200);
+
+  // Nothing on this screen requires typing unless Other is chosen.
+  const typable = await p.$$eval('.card input[type="text"], .card textarea, .card select',
+    (els) => els.length);
+  check('no typing required to continue', typable === 0, `${typable} field(s)`);
+
+  await p.click('button:has-text("Continue to Scan")');
+  await p.waitForTimeout(1200);
+  const scanBtn = await p.$('button:has-text("Start Scan")');
+  if (scanBtn) { await scanBtn.click(); await p.waitForTimeout(1000); }
+  check('continues into the scan', /Scan/.test(await p.textContent('h1')));
+
+  await p.click('button:has-text("Recommendation")');
+  await p.waitForTimeout(2500);
+  await p.click('button:has-text("Create fit report")');
+  await p.waitForURL(/\/r\//, { timeout: 20000 });
+  await p.waitForTimeout(800);
+
+  const body = await p.textContent('body');
+  check('the report attributes the concerns to the customer',
+    body.includes('Customer-reported concerns'));
+  check('the selected concerns persisted to the report',
+    body.includes('Plantar fasciitis') && body.includes('Heel pain'));
+  // The boundary, in the artifact the customer takes home.
+  //
+  // Checking for the WORD "diagnosis" was wrong and failed here on the first
+  // run: the report's own disclaimer says "not a medical assessment, diagnosis,
+  // or treatment recommendation", which is the opposite of a violation. What
+  // matters is whether Stride Guide makes a claim, so these look for claims.
+  for (const claim of [/stride guide (detected|diagnosed|found|determined)/i,
+                       /you have (plantar|a neuroma|bunions|arthritis)/i,
+                       /we (diagnosed|detected|treat)/i,
+                       /(recommended|suggested) treatment/i]) {
+    check(`the report makes no claim matching ${claim}`, !claim.test(body));
+  }
+  check('the report carries its non-medical disclaimer',
+    /not a medical assessment, diagnosis, or treatment recommendation/i.test(body));
+  // And the condition name appears only as the customer's own words.
+  const pfIndex = body.indexOf('Plantar fasciitis');
+  const labelIndex = body.indexOf('Customer-reported concerns');
+  check('the condition name sits under the customer-reported label',
+    pfIndex > -1 && labelIndex > -1 && pfIndex > labelIndex);
+  await p.close();
+}
+
 // ────────────────────────────────────────────────────────────────── runner ──
 
 browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
@@ -185,6 +289,7 @@ try {
   await pathAllYes();
   await pathReportGeneration();
   await pathTokenReportOpen();
+  await pathReportedConcerns();
 } finally {
   await browser.close();
 }

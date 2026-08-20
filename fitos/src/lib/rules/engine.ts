@@ -156,6 +156,8 @@ export function toObservedFeatures(
 
   // Quick intake. Booleans, so `put`'s empty-value guard would drop a legitimate
   // false — passed through explicitly instead. Null still means "not asked".
+  put('reported_concerns', intake.reported_concerns, 'intake_inferred');
+
   for (const k of ['intake_discomfort', 'intake_shoe_issue', 'intake_high_activity',
                    'intake_new_discomfort_since_last', 'intake_use_changed_since_last']) {
     if (typeof intake[k] === 'boolean') {
@@ -275,6 +277,31 @@ function seedFromObservations(features: ObservedFeatures) {
   const CONTEXT = 0.25;
   if (features.intake_discomfort?.value === true) add('cushioning_level', 'plush', CONTEXT);
   if (features.intake_high_activity?.value === true) add('cushioning_level', 'plush', CONTEXT);
+  // Customer-reported concerns, same weight and the same reasoning: a person
+  // saying a word is the weakest evidence in the pipeline, well below anything
+  // measured or seen. Each nudge is a FIT consequence of what to inspect, never
+  // a response to a condition — roomier toe box for reported toe pressure is
+  // shoe fitting; anything shaped like treatment is not here and will not be.
+  //
+  // plantar_fasciitis casts no attribute vote. It is a diagnosis label rather
+  // than a fit signal, and the customer who reports it almost always also
+  // reports heel or arch pain, which carry the fit consequence honestly. Acting
+  // on the label itself would be inferring from a self-reported diagnosis.
+  //
+  // neuroma and bunion do nudge the toe box, because "make room in the forefoot"
+  // is a shoe-fitting response to what the customer described, not a response to
+  // a condition. The distinction is the one the whole feature rests on: fit
+  // consequences yes, clinical inference no.
+  const concerns = features.reported_concerns?.value;
+  if (Array.isArray(concerns)) {
+    if (concerns.includes('heel_pain')) add('cushioning_level', 'plush', CONTEXT);
+    if (concerns.includes('forefoot_pain')) add('cushioning_level', 'plush', CONTEXT);
+    if (concerns.includes('bunion')) add('toe_box', 'wide_round', CONTEXT);
+    if (concerns.includes('neuroma')) add('toe_box', 'roomy', CONTEXT);
+    if (concerns.includes('toe_pressure')) add('toe_box', 'roomy', CONTEXT);
+    if (concerns.includes('orthotics_inserts')) add('volume', 'high', CONTEXT);
+  }
+
   // intake_shoe_issue casts no vote at all. "Something is wrong with the
   // current shoes" is a prompt to look at the current shoes, and the looking is
   // what produces a signal worth acting on.

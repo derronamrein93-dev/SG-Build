@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveIntake, saveAssessment, computeRecommendation, completeFitting } from '../../actions';
 import { questionsFor, type IntakeQuestion } from '../../../lib/intake/questions';
+import { CONCERN_VALUES, CONCERN_LABELS, CONCERN_OTHER_MAX, shouldOfferConcerns,
+         type ConcernValue } from '../../../lib/intake/concerns';
 import { emit } from '../../../lib/analytics';
 import type { Recommendation } from '../../../lib/rules/engine';
 
@@ -83,7 +85,7 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
   initialIntake: Values; initialAssessment: Values; previous: Values | null;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<'intake' | 'assessment' | 'recommendation'>('intake');
+  const [step, setStep] = useState<'intake' | 'concerns' | 'assessment' | 'recommendation'>('intake');
   const [intake, setIntake] = useState<Values>(initialIntake);
 
   // The quick intake: three questions for a new customer, two for a returning
@@ -93,6 +95,10 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
   const [qIndex, setQIndex] = useState(0);
   const [showDetail, setShowDetail] = useState(false);
   const showDetailEver = useRef(false);
+  const [concerns, setConcerns] = useState<ConcernValue[]>(
+    Array.isArray(initialIntake.reported_concerns) ? initialIntake.reported_concerns as ConcernValue[] : []);
+  const [concernOther, setConcernOther] = useState<string>(
+    typeof initialIntake.reported_concern_other === 'string' ? initialIntake.reported_concern_other : '');
   const intakeStarted = useRef(Date.now());
   const [assessment, setAssessment] = useState<Values>({
     size_left: 10, size_right: 10, ...initialAssessment,
@@ -148,6 +154,41 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
     }
   }
 
+  /**
+   * End of the yes/no questions. If the customer has already said something
+   * hurts, offer the optional concern screen first; otherwise go straight to
+   * the scan, which is what keeps the all-No path three taps long.
+   */
+  function finishQuestions() {
+    if (shouldOfferConcerns(intake)) {
+      emit('concern_screen_shown', { fitting_session_id: sessionId, visit_number: visitNumber });
+      setStep('concerns');
+    } else {
+      void startScan();
+    }
+  }
+
+  function toggleConcern(v: ConcernValue) {
+    setConcerns((prev) => (prev.includes(v) ? prev.filter((c) => c !== v) : [...prev, v]));
+  }
+
+  /** Leave the concern screen — with selections, or with none. */
+  async function leaveConcerns(skipped: boolean) {
+    const chosen = skipped ? [] : concerns;
+    await saveIntake(sessionId, {
+      reported_concerns: chosen,
+      reported_concern_other: skipped ? null : concernOther,
+    });
+    emit(skipped ? 'concern_screen_skipped' : 'concern_screen_completed', {
+      fitting_session_id: sessionId,
+      concern_count: chosen.length,
+      // The count and the flag, never the words. Free text is customer speech
+      // and does not leave the application boundary.
+      concern_other_used: chosen.includes('other') && concernOther.trim().length > 0,
+    });
+    await startScan();
+  }
+
   /** Start Scan — the end of the intake and the beginning of the fitting. */
   async function startScan() {
     const seconds = Math.round((Date.now() - intakeStarted.current) / 1000);
@@ -189,7 +230,9 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
             {customerName ?? 'Anonymous fitting'}{visitNumber > 1 && ` · Visit ${visitNumber}`}
           </p>
           <h1 className="text-[28px] font-semibold tracking-[-0.02em] mt-1">
-            {step === 'intake' ? 'Intake' : step === 'assessment' ? 'Scan · Measurements' : 'Recommendation'}
+            {step === 'intake' ? 'Intake'
+              : step === 'concerns' ? 'Anything specific?'
+              : step === 'assessment' ? 'Scan · Measurements' : 'Recommendation'}
           </h1>
         </div>
         <p className="text-[12px] text-ink-muted font-mono">
@@ -279,7 +322,9 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
               )}
               {last && (
                 <button type="button" className="btn-primary text-[19px] px-8 py-4"
-                  disabled={answered === null} onClick={startScan}>Start Scan →</button>
+                  disabled={answered === null} onClick={finishQuestions}>
+                  {shouldOfferConcerns({ ...intake, [q.field]: answered })
+                    ? 'Continue →' : 'Start Scan →'}</button>
               )}
               {qIndex > 0 && (
                 <button type="button" className="btn-ghost"
@@ -289,6 +334,61 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
           </div>
         );
       })()}
+
+      {step === 'concerns' && (
+        <div className="card">
+          <h2 className="text-[26px] leading-[1.25] font-semibold tracking-[-0.01em]">
+            Anything specific we should know about?
+          </h2>
+          <p className="text-[15px] text-ink-secondary mt-2">
+            Select any concerns the customer reports. This is optional.
+          </p>
+
+          {/* Three columns at tablet width keeps twelve chips on one screen
+              without scrolling. One tap selects, a second deselects. */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
+            {CONCERN_VALUES.map((v) => {
+              const on = concerns.includes(v);
+              return (
+                <button key={v} type="button" data-concern={v} aria-pressed={on}
+                  onClick={() => toggleConcern(v)}
+                  className={`min-h-[72px] px-4 rounded-xl border-2 text-[17px] font-medium text-left transition-colors ${
+                    on ? 'bg-accent text-white border-accent'
+                       : 'bg-surface-raised border-line text-ink-primary active:bg-accent-wash'}`}>
+                  {CONCERN_LABELS[v]}
+                </button>
+              );
+            })}
+          </div>
+
+          {concerns.includes('other') && (
+            <div className="mt-6">
+              <label htmlFor="concern-other" className="block text-[14px] text-ink-secondary mb-2">
+                Optional — what did they mention?
+              </label>
+              <input id="concern-other" name="concern_other" type="text"
+                value={concernOther} maxLength={CONCERN_OTHER_MAX}
+                onChange={(e) => setConcernOther(e.target.value)}
+                placeholder="In the customer's own words"
+                className="w-full h-14 px-4 rounded-xl border-2 border-line bg-surface-raised text-[17px]" />
+              <p className="text-[12px] text-ink-muted mt-1">
+                Recorded as something the customer told us. {CONCERN_OTHER_MAX} characters.
+              </p>
+            </div>
+          )}
+
+          <p className="text-[13px] text-ink-muted mt-6">
+            Recorded as customer-reported. Stride Guide does not diagnose.
+          </p>
+
+          <div className="mt-6 flex items-center gap-4">
+            <button type="button" className="btn-primary text-[19px] px-8 py-4"
+              onClick={() => void leaveConcerns(false)}>Continue to Scan →</button>
+            <button type="button" className="btn-ghost text-[17px]"
+              onClick={() => void leaveConcerns(true)}>Skip</button>
+          </div>
+        </div>
+      )}
 
       {step === 'assessment' && (
         <div className="card">
@@ -405,7 +505,7 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
       <nav className="fixed bottom-0 left-0 right-0 bg-surface-raised border-t border-line px-6 py-3 flex justify-between">
         <button className="btn-ghost" type="button"
           onClick={() => setStep(step === 'recommendation' ? 'assessment' : 'intake')}
-          style={{ visibility: step === 'intake' ? 'hidden' : 'visible' }}>Back</button>
+          style={{ visibility: step === 'intake' || step === 'concerns' ? 'hidden' : 'visible' }}>Back</button>
         {/* intake advances from inside the card: one question, one decision */}
         {step === 'assessment' && <button className="btn-primary" onClick={toRecommendation}>Recommendation →</button>}
         {step === 'recommendation' && <button className="btn-primary" onClick={finish}>Create fit report →</button>}

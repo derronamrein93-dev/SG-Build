@@ -6,6 +6,8 @@
  * against something they actually said. Only present values are emitted — an
  * empty row reads as a form the associate failed to fill in.
  */
+import { normalizeConcerns, CONCERN_LABELS } from '../intake/concerns';
+
 export interface ToldUsItem { label: string; value: string; }
 
 const WORDS: Record<string, Record<string, string>> = {
@@ -64,6 +66,18 @@ export function buildToldUs(session: Record<string, any>): ToldUsItem[] {
   push('High activity or extended standing', yesNo(session.intake_high_activity));
   push('New discomfort since last visit', yesNo(session.intake_new_discomfort_since_last));
   push('Activity or use changed since last visit', yesNo(session.intake_use_changed_since_last));
+
+  // What the customer told us they have. A quote, labelled as one — the report
+  // says "Customer reported", never "we found". Omitted entirely when nothing
+  // was selected, so an untouched optional screen leaves no trace.
+  const concerns = normalizeConcerns(session.reported_concerns);
+  if (concerns.length) {
+    push('Customer-reported concerns',
+      concerns.filter((c) => c !== 'other').map((c) => CONCERN_LABELS[c]).join(', ') || undefined);
+  }
+  if (session.reported_concern_other) {
+    push('Other customer-reported concern', String(session.reported_concern_other));
+  }
 
   // Everything below comes from the optional Add detail panel. Still read, still
   // printed when present, never required.

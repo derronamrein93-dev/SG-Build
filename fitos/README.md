@@ -22,9 +22,10 @@ layer, *What you told us*, and a token-gated public report route.
 | Customer merge primitive (tombstone + reversal) | ✅ 21 tests, service-role only |
 | Fitting flow: lookup → 3 yes/no questions → scan → recommendation → report | ✅ walked end to end in a browser |
 | Quick intake (3 questions, 2 returning) | ✅ 18 tests, verified on a tablet viewport |
+| Optional customer-reported concerns | ✅ 19 tests, quote-not-claim boundary asserted |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**153 tests across eleven suites**, plus 23 isolation assertions, 5 preflight assertions, and 27 browser checks.
+**172 tests across twelve suites**, plus 23 isolation assertions, 5 preflight assertions, and 45 browser checks.
 
 ## Run it
 
@@ -32,7 +33,7 @@ layer, *What you told us*, and a token-gated public report route.
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
 npm run demo          # reset, build, start on :3000  (see ../DEMO_RUNBOOK.md)
 npm run verify        # reset → tests → preflight → isolation → build → reset
-npm run test          # all suites  (153 tests) — sources dev.env for the peppers
+npm run test          # all suites  (172 tests) — sources dev.env for the peppers
 npm run e2e           # six browser golden paths against a running server
 npm run e2e:full      # reset, build, start, run the golden paths, stop
 npm run deploy:bundle # regenerate deploy/schema-bundle.sql from db/migrations/

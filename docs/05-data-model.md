@@ -561,6 +561,85 @@ error_code · reported_at.
 
 ---
 
+## Customer-reported concerns
+
+Pilot feedback after the three-question intake was accepted: *"there should be a
+place for people to key in specifics, like plantar fasciitis, or neuroma."*
+
+An optional screen, offered **only** when the customer has already said
+something hurts — a Yes on discomfort, on the current-shoe question, or, for a
+returning customer, on new discomfort since the last visit. All-No never sees
+it, which is what keeps the default path three taps long. Twelve chips, one tap
+to select, a second to deselect, Skip always available.
+
+### A concern is a quote, never a claim
+
+This is the whole design constraint, and it has teeth: **`plantar fasciitis` and
+`neuroma` are already in `BANNED_TERMS`.** Generated prose may not contain them,
+and that has not changed. What changed is that the report can now carry the
+customer's own words, labelled as theirs.
+
+| | |
+| --- | --- |
+| Report | *Customer-reported concerns: Plantar fasciitis, Heel pain* |
+| Composed paragraph | still cannot name a condition — `concerns.test.ts` CN15 |
+| Talking points | rule-authored, unchanged, still guardrail-clean |
+
+The inspection prompts an associate sees are procedural, never clinical: *"Check
+toe-box width at the first joint"* is a fitting instruction; *"this is a bunion"*
+would be a claim.
+
+### Why a separate column
+
+`reported_concerns text[]` and `reported_concern_other text`, not more values in
+`discomfort_area`. `discomfort_area` answers *where does it hurt* and is filled
+in while looking at a foot. `reported_concerns` answers *what did the customer
+tell us they have*. Merging them would make "customer reported plantar
+fasciitis" indistinguishable from "associate noted heel discomfort", and
+provenance is the entire safety story here.
+
+`text[]` with a check constraint rather than an enum array, matching
+`discomfort_area`, `fit_priority`, `current_shoe_problem` and `risk_flags`.
+Adding a value stays a one-line migration.
+
+Free text is capped at 200 characters, stripped of control characters, stored
+verbatim otherwise, and only kept when the `other` chip is actually selected —
+enforced both in `normalizeConcerns`/`sanitizeConcernOther` and by a database
+constraint, so an inconsistent pair cannot be written.
+
+### What they move, and what they do not
+
+Weight **0.25**, the same as the yes/no answers: below pressure data, below
+measured size and width, below prior fittings, below what the associate sees.
+
+| Concern | Nudge |
+| --- | --- |
+| heel_pain, forefoot_pain | cushioning → plush |
+| bunion | toe box → wide_round |
+| neuroma, toe_pressure | toe box → roomy |
+| orthotics_inserts | volume → high |
+| **plantar_fasciitis** | **nothing** |
+| ankle_pain, knee_pain, arch_pain, diabetes_neuropathy | nothing |
+
+`plantar_fasciitis` deliberately votes on nothing. It is a diagnosis label, not
+a description of a foot, and the heel or arch pain that accompanies it carries
+the fit signal honestly. `neuroma` and `bunion` do nudge the toe box, because
+"make room in the forefoot" is a fitting response to what the customer described
+— that line, fit consequence yes and clinical inference no, is where this
+feature lives.
+
+CN14 asserts the label moves nothing; CN14b asserts the ones that do nudge still
+cannot outvote an observation.
+
+### Analytics
+
+`concern_screen_shown`, `concern_screen_completed`, `concern_screen_skipped`,
+with `concern_count` and `concern_other_used`. **`reported_concern_other` is
+absent from the allowlist on purpose** — it is customer speech, so passing it
+would be dropped rather than sent. CN16 asserts that.
+
+---
+
 ## Testing the paths the tablet actually takes
 
 Two suites exist because of one bug. `createCustomer` was broken under RLS while

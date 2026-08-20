@@ -8,6 +8,7 @@
  * intake redesign.
  */
 import { withTenant, type TenantContext } from '../db/client';
+import { normalizeConcerns, sanitizeConcernOther } from './concerns';
 
 /** Quick-intake answers plus every pre-existing detailed field. */
 export const INTAKE_COLUMNS = [
@@ -16,6 +17,8 @@ export const INTAKE_COLUMNS = [
   'intake_new_discomfort_since_last', 'intake_use_changed_since_last',
   // bookkeeping for the redesign's own metric
   'intake_mode', 'intake_duration_seconds',
+  // customer-reported concerns (0011) — a quote, never a finding
+  'reported_concerns', 'reported_concern_other',
   // preserved, hidden from the default UI, still written by Add detail
   'shopping_purpose', 'current_shoe_problem', 'discomfort_area', 'discomfort_timing',
   'activity_level', 'standing_hours_per_day', 'current_shoe_brand', 'current_shoe_model',
@@ -26,6 +29,15 @@ export const INTAKE_COLUMNS = [
 export async function writeIntake(
   ctx: TenantContext, sessionId: string, patch: Record<string, unknown>,
 ) {
+  // Concerns are normalised here rather than trusted from the client: unknown
+  // values are dropped, order is canonical, and the free text is only kept when
+  // the 'other' chip is actually selected — which is also what the database
+  // constraint requires, so an inconsistent pair can never be written.
+  if ('reported_concerns' in patch || 'reported_concern_other' in patch) {
+    const concerns = normalizeConcerns(patch.reported_concerns);
+    patch = { ...patch, reported_concerns: concerns,
+              reported_concern_other: sanitizeConcernOther(patch.reported_concern_other, concerns) };
+  }
   const keys = Object.keys(patch).filter((k) => (INTAKE_COLUMNS as readonly string[]).includes(k));
   if (!keys.length) return;
   const sets = keys.map((k, i) => `${k} = $${i + 3}`).join(', ');
