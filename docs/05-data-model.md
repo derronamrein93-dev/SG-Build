@@ -561,6 +561,48 @@ error_code · reported_at.
 
 ---
 
+## Testing the paths the tablet actually takes
+
+Two suites exist because of one bug. `createCustomer` was broken under RLS while
+141 tests passed, and it stayed broken because **every fixture in the suite
+created data through `withService`, which carries `BYPASSRLS`.** Nothing had ever
+executed a write as `fitos_app`.
+
+| | What it covers | Cost |
+| --- | --- | --- |
+| `src/lib/fitting/mutations.test.ts` | Every mutation run as `fitos_app` — privilege, not flow | seconds, no browser |
+| `e2e/golden-paths.mjs` | Six flows in a real browser at tablet size | ~30s, needs a running server |
+
+**The cheap one earns its place first.** It reproduces the original failure
+exactly when the `RETURNING` is put back, and it is the layer that catches this
+bug class. The browser suite covers flows; it should not be asked to cover
+privilege modes.
+
+`mutations.test.ts` forbids `withService` in its own file, and MU11 asserts that
+mechanically — the bug hid precisely because fixtures reached for the service
+role, so the guard needs a guard.
+
+`e2e/` is not a CI gate; there is no CI here. Run `npm run e2e:full` before a
+demo and after any change to the fitting flow. `playwright-core` is a dev
+dependency and Chromium is expected at `/opt/pw-browsers/...`; override with
+`E2E_CHROME` and `E2E_BASE`.
+
+### Two bugs these found on day one
+
+**Add detail was unreachable.** Answering Yes advanced to the next question — so
+the tap that revealed the button also navigated away from it, on exactly the two
+questions that offer detail. A No still advances; a Yes now stays put and shows
+Continue.
+
+**Customer numbering raced.** `assign_local_customer_number()` did
+`max(local_customer_number) + 1` with no lock, so two associates creating a
+walk-in at the same moment collided on `organization_customer_number_key`.
+Migration 0010 takes a per-organization advisory lock. It surfaced only when a
+third test file started creating customers concurrently, and it made the suite
+fail about one run in three.
+
+---
+
 ## Quick intake
 
 Pilot feedback: the intake was too long, and the associate wanted yes/no

@@ -133,7 +133,19 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
     const next = { ...intake, [q.field]: value };
     setIntake(next);
     void saveIntake(sessionId, { [q.field]: value });
-    if (qIndex < questions.length - 1) { setQIndex(qIndex + 1); setShowDetail(false); }
+
+    // A No is the end of that subject — advance immediately, which is what keeps
+    // the all-No path down to one tap per question.
+    //
+    // A Yes on a question that can expand does NOT advance. It used to, which
+    // made "Add detail" unreachable on precisely the two questions that offer
+    // it: the tap that revealed the button also navigated away from it. Staying
+    // put costs a Continue tap and buys back the whole optional-detail feature.
+    const canExpand = value === true && q.offersDetail;
+    if (!canExpand && qIndex < questions.length - 1) {
+      setQIndex(qIndex + 1);
+      setShowDetail(false);
+    }
   }
 
   /** Start Scan — the end of the intake and the beginning of the fitting. */
@@ -261,6 +273,10 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
                 stays deliberate: the last answer reveals it rather than firing
                 it, so nobody starts a scan with their thumb still moving. */}
             <div className="mt-8 flex items-center gap-4">
+              {!last && answered !== null && (
+                <button type="button" className="btn-primary text-[17px] px-6 py-3"
+                  onClick={() => { setQIndex(qIndex + 1); setShowDetail(false); }}>Continue →</button>
+              )}
               {last && (
                 <button type="button" className="btn-primary text-[19px] px-8 py-4"
                   disabled={answered === null} onClick={startScan}>Start Scan →</button>

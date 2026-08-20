@@ -24,7 +24,7 @@ layer, *What you told us*, and a token-gated public report route.
 | Quick intake (3 questions, 2 returning) | ✅ 18 tests, verified on a tablet viewport |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**141 tests across ten suites**, plus 23 isolation assertions and 5 preflight assertions in psql.
+**153 tests across eleven suites**, plus 23 isolation assertions, 5 preflight assertions, and 27 browser checks.
 
 ## Run it
 
@@ -32,7 +32,9 @@ layer, *What you told us*, and a token-gated public report route.
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
 npm run demo          # reset, build, start on :3000  (see ../DEMO_RUNBOOK.md)
 npm run verify        # reset → tests → preflight → isolation → build → reset
-npm run test          # all suites  (141 tests) — sources dev.env for the peppers
+npm run test          # all suites  (153 tests) — sources dev.env for the peppers
+npm run e2e           # six browser golden paths against a running server
+npm run e2e:full      # reset, build, start, run the golden paths, stop
 npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```
