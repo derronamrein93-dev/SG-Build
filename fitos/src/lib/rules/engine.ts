@@ -20,7 +20,10 @@ export type FeatureSource = 'manual' | 'sensor_derived' | 'intake_inferred' | 'i
 
 export interface ObservedFeature {
   key: string;
-  value: string | number | string[];
+  // boolean joins the union for the quick-intake answers. They are genuinely
+  // binary; encoding them as 'yes'/'no' strings would invite a truthiness bug
+  // the first time someone wrote `if (f.value)` against 'no'.
+  value: string | number | boolean | string[];
   source: FeatureSource;
   algorithmVersion?: string;
   quality?: number;
@@ -150,6 +153,15 @@ export function toObservedFeatures(
   put('previous_return_reason', intake.previous_return_reason, 'intake_inferred');
   put('uses_orthotics', intake.uses_orthotics, 'intake_inferred');
   put('red_flags', intake.red_flags, 'intake_inferred');
+
+  // Quick intake. Booleans, so `put`'s empty-value guard would drop a legitimate
+  // false — passed through explicitly instead. Null still means "not asked".
+  for (const k of ['intake_discomfort', 'intake_shoe_issue', 'intake_high_activity',
+                   'intake_new_discomfort_since_last', 'intake_use_changed_since_last']) {
+    if (typeof intake[k] === 'boolean') {
+      out[k] = { key: k, value: intake[k] as boolean, source: 'intake_inferred' };
+    }
+  }
   put('age_range', intake.age_range, 'intake_inferred');
 
   put('arch_type', assessment.arch_type, 'manual');
@@ -177,7 +189,7 @@ export function toObservedFeatures(
 
 // ───────────────────────────────────────────────── condition matching ──
 
-function valueOf(features: ObservedFeatures, field: string): string | number | string[] | undefined {
+function valueOf(features: ObservedFeatures, field: string): string | number | boolean | string[] | undefined {
   return features[field]?.value;
 }
 
@@ -252,6 +264,21 @@ function seedFromObservations(features: ObservedFeatures) {
     if (shape.includes('high_volume')) add('volume', 'high');
     if (shape.includes('low_volume')) add('volume', 'low');
   }
+
+  // ── quick-intake context signals ──────────────────────────────────────────
+  // Weight 0.25, deliberately a quarter of a direct observation and a tenth of
+  // a rule. Three yes/no answers are the weakest thing in the pipeline: they
+  // sit below pressure data, below measured size and width, below prior
+  // fittings, and below what the associate sees with the shoe in their hand.
+  // They are context, not diagnosis — a Yes says "ask about this", never "this
+  // person has that condition", so nothing here votes on support or arch.
+  const CONTEXT = 0.25;
+  if (features.intake_discomfort?.value === true) add('cushioning_level', 'plush', CONTEXT);
+  if (features.intake_high_activity?.value === true) add('cushioning_level', 'plush', CONTEXT);
+  // intake_shoe_issue casts no vote at all. "Something is wrong with the
+  // current shoes" is a prompt to look at the current shoes, and the looking is
+  // what produces a signal worth acting on.
+
   return seed;
 }
 

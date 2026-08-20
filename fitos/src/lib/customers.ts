@@ -8,6 +8,7 @@
  */
 import { withTenant } from './db/client';
 import { currentContext } from './session';
+import { randomUUID } from 'crypto';
 import { normalizePhone, phoneLookupHash, last4, PHONE_KEY_VERSION } from './db/identity';
 
 export async function findCustomerByPhone(raw: string) {
@@ -43,14 +44,21 @@ export async function createCustomer(input: {
   // CAPTURE, not a consent check. Anything asking whether consent *holds* for a
   // stored customer goes through hasConsent() in src/lib/consent.ts.
   if (!input.consent) throw new Error('Consent is required before storing fitting information.');
+  const customerId = randomUUID();
   return withTenant(ctx, async (c) => {
-    const { rows } = await c.query(
+    await c.query(
+      // No RETURNING, deliberately. RETURNING re-reads the row under the
+      // policy's USING clause, which calls app_can_access_customer() — and the
+      // location grant that satisfies it is written by an AFTER INSERT trigger
+      // that has not fired yet. The insert succeeds and the read-back fails,
+      // surfacing as "new row violates row-level security policy" on the one
+      // path that creates a customer. So: generate the id here, insert, then
+      // select once the trigger has run.
       `insert into organization_customer
-        (organization_id,created_at_location_id,first_name,last_name,
+        (id,organization_id,created_at_location_id,first_name,last_name,
          phone_lookup_hash,phone_encrypted,phone_last4,phone_key_version,identification_method)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,'phone')
-       returning id, first_name, last_name, local_customer_number`,
-      [ctx.organizationId, ctx.locationId, input.firstName, input.lastName,
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,'phone')`,
+      [customerId, ctx.organizationId, ctx.locationId, input.firstName, input.lastName,
        phoneLookupHash(ctx.organizationId, e164), Buffer.from(e164), last4(e164), PHONE_KEY_VERSION]);
     // Five consent types, never one boolean (docs/05 §11). Withdrawal is a new
     // row with granted=false, never an update — which is why reads must resolve
@@ -60,8 +68,13 @@ export async function createCustomer(input: {
         `insert into consent_record
           (scope,organization_customer_id,location_id,type,granted,consent_text_version,privacy_policy_version,method,captured_by_user_id)
          values ('organization',$1,$2,$3,true,'consent-fit-v1.0','privacy-v1.0','tablet_checkbox',$4)`,
-        [rows[0].id, ctx.locationId, type, ctx.userId]);
+        [customerId, ctx.locationId, type, ctx.userId]);
     }
+    // Read back now that the AFTER INSERT trigger has granted this location
+    // access, so the row is visible to the policy.
+    const { rows } = await c.query(
+      `select id, first_name, last_name, local_customer_number
+         from organization_customer where id = $1`, [customerId]);
     return rows[0];
   });
 }

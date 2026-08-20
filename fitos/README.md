@@ -20,10 +20,11 @@ layer, *What you told us*, and a token-gated public report route.
 | Required identity peppers, no fallback | ✅ 11 tests, fails fast |
 | Tenant-scoped, append-only `report_view` | ✅ gated orphan sweep, 5 preflight assertions |
 | Customer merge primitive (tombstone + reversal) | ✅ 21 tests, service-role only |
-| Fitting flow: dashboard → customer → intake → assessment → recommendation → report | ✅ walked end to end in a browser |
+| Fitting flow: lookup → 3 yes/no questions → scan → recommendation → report | ✅ walked end to end in a browser |
+| Quick intake (3 questions, 2 returning) | ✅ 18 tests, verified on a tablet viewport |
 | Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
 
-**122 tests across eight suites**, plus 23 isolation assertions and 5 preflight assertions in psql.
+**141 tests across ten suites**, plus 23 isolation assertions and 5 preflight assertions in psql.
 
 ## Run it
 
@@ -31,7 +32,7 @@ layer, *What you told us*, and a token-gated public report route.
 bash db/reset.sh      # roles, migrations, seed  (needs a local Postgres)
 npm run demo          # reset, build, start on :3000  (see ../DEMO_RUNBOOK.md)
 npm run verify        # reset → tests → preflight → isolation → build → reset
-npm run test          # all suites  (122 tests) — sources dev.env for the peppers
+npm run test          # all suites  (141 tests) — sources dev.env for the peppers
 npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```

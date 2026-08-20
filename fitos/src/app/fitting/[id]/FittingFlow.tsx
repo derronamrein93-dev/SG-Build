@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveIntake, saveAssessment, computeRecommendation, completeFitting } from '../../actions';
+import { questionsFor, type IntakeQuestion } from '../../../lib/intake/questions';
+import { emit } from '../../../lib/analytics';
 import type { Recommendation } from '../../../lib/rules/engine';
 
 type Values = Record<string, any>;
@@ -53,6 +55,29 @@ const Dots = ({ level, scale }: { level: string; scale: string[] }) => (
 
 /* ── the flow ───────────────────────────────────────────────────────── */
 
+/**
+ * One question, two targets. 96px tall because this is used at arm's length on
+ * a counter, often one-handed, sometimes while holding a shoe. Nothing here
+ * depends on hover, and nothing needs a keyboard.
+ */
+function YesNo({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
+  const base = 'flex-1 h-24 rounded-xl border-2 text-[22px] font-semibold transition-colors';
+  return (
+    <div className="flex gap-4 mt-8">
+      <button type="button" aria-pressed={value === true} data-answer="yes"
+        onClick={() => onChange(true)}
+        className={`${base} ${value === true
+          ? 'bg-accent text-white border-accent'
+          : 'bg-surface-raised border-line text-ink-primary active:bg-accent-wash'}`}>Yes</button>
+      <button type="button" aria-pressed={value === false} data-answer="no"
+        onClick={() => onChange(false)}
+        className={`${base} ${value === false
+          ? 'bg-accent text-white border-accent'
+          : 'bg-surface-raised border-line text-ink-primary active:bg-accent-wash'}`}>No</button>
+    </div>
+  );
+}
+
 export default function FittingFlow({ sessionId, customerName, visitNumber, initialIntake, initialAssessment, previous }: {
   sessionId: string; customerName: string | null; visitNumber: number;
   initialIntake: Values; initialAssessment: Values; previous: Values | null;
@@ -60,6 +85,15 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
   const router = useRouter();
   const [step, setStep] = useState<'intake' | 'assessment' | 'recommendation'>('intake');
   const [intake, setIntake] = useState<Values>(initialIntake);
+
+  // The quick intake: three questions for a new customer, two for a returning
+  // one. One on screen at a time — a stacked list invites reading ahead, and
+  // reading ahead is what made the old intake feel like paperwork.
+  const questions = questionsFor(visitNumber);
+  const [qIndex, setQIndex] = useState(0);
+  const [showDetail, setShowDetail] = useState(false);
+  const showDetailEver = useRef(false);
+  const intakeStarted = useRef(Date.now());
   const [assessment, setAssessment] = useState<Values>({
     size_left: 10, size_right: 10, ...initialAssessment,
   });
@@ -93,6 +127,33 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
 
   useEffect(() => () => Object.values(timers.current).forEach(clearTimeout), []);
 
+  /** Record one yes/no and advance. Saves immediately: a tap is a decision, and
+   *  there is nothing to debounce about a single boolean. */
+  function answer(q: IntakeQuestion, value: boolean) {
+    const next = { ...intake, [q.field]: value };
+    setIntake(next);
+    void saveIntake(sessionId, { [q.field]: value });
+    if (qIndex < questions.length - 1) { setQIndex(qIndex + 1); setShowDetail(false); }
+  }
+
+  /** Start Scan — the end of the intake and the beginning of the fitting. */
+  async function startScan() {
+    const seconds = Math.round((Date.now() - intakeStarted.current) / 1000);
+    const answeredYes = questions.filter((q) => intake[q.field] === true).length;
+    await saveIntake(sessionId, {
+      intake_duration_seconds: seconds,
+      intake_mode: showDetailEver.current ? 'detailed' : 'quick',
+    });
+    emit('intake_completed', {
+      fitting_session_id: sessionId, visit_number: visitNumber,
+      question_count: questions.length, answered_yes_count: answeredYes,
+      intake_duration_seconds: seconds, detail_opened: showDetailEver.current,
+      intake_mode: showDetailEver.current ? 'detailed' : 'quick',
+    });
+    emit('scan_started', { fitting_session_id: sessionId, visit_number: visitNumber });
+    setStep('assessment');
+  }
+
   async function toRecommendation() {
     await saveIntake(sessionId, intake);
     await saveAssessment(sessionId, assessment);
@@ -115,7 +176,9 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
           <p className="overline">
             {customerName ?? 'Anonymous fitting'}{visitNumber > 1 && ` · Visit ${visitNumber}`}
           </p>
-          <h1 className="text-[28px] font-semibold tracking-[-0.02em] mt-1 capitalize">{step}</h1>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] mt-1">
+            {step === 'intake' ? 'Intake' : step === 'assessment' ? 'Scan · Measurements' : 'Recommendation'}
+          </h1>
         </div>
         <p className="text-[12px] text-ink-muted font-mono">
           {saving ? 'saving…' : 'saved on this device'} · {elapsed}s
@@ -130,40 +193,86 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
             {previous.width && ` · ${previous.width} width`}
             {previous.size_left && ` · ${previous.size_left}/${previous.size_right}`}
           </p>
-          <p className="text-[14px] text-ink-secondary mt-1">Anything changed since then?</p>
+          <p className="text-[14px] text-ink-secondary mt-1">Two quick questions and we scan.</p>
         </div>
       )}
 
-      {step === 'intake' && (
-        <div className="card">
-          <Chips label="What are they shopping for?" value={intake.shopping_purpose}
-            onChange={(v) => setI('shopping_purpose', v)}
-            options={[['running','Running'],['walking','Walking'],['work','Work'],['casual','Casual'],
-              ['orthopedic','Comfort'],['kids','Kids'],['sports','Sports'],['hiking','Hiking']]} />
-          <Chips label="Where is the discomfort?" multi value={intake.discomfort_area}
-            onChange={(v) => setI('discomfort_area', v)} hint="tap all that apply"
-            options={[['heel','Heel'],['arch','Arch'],['ball_of_foot','Ball of foot'],['toes','Toes'],
-              ['ankle','Ankle'],['knee','Knee'],['hip_back','Hip / back'],['none','No pain']]} />
-          <Chips label="When is it worst?" value={intake.discomfort_timing}
-            onChange={(v) => setI('discomfort_timing', v)}
-            options={[['during','During activity'],['after','After activity'],['all_day','All day'],
-              ['first_steps_morning','First steps in the morning'],['certain_shoes','Only in certain shoes']]} />
-          <Chips label="Hours on their feet each day" value={intake.standing_hours_per_day}
-            onChange={(v) => setI('standing_hours_per_day', v)}
-            options={[['under_2','Under 2'],['2_4','2–4'],['4_8','4–8'],['8_plus','8+']]} />
-          <Chips label="What matters most?" multi value={intake.fit_priority}
-            onChange={(v) => setI('fit_priority', v)} hint="pick up to two"
-            options={[['comfort','Comfort'],['support','Support'],['performance','Performance'],
-              ['durability','Durability'],['style','Style'],['price','Price']]} />
-          <Chips label="Current shoe wear pattern" value={intake.shoe_wear_concern}
-            onChange={(v) => setI('shoe_wear_concern', v)}
-            options={[['even','Even'],['outer_edge','Outer edge'],['inner_edge','Inner edge'],
-              ['heel','Heel'],['uneven_lr','Uneven L/R'],['unsure','Not sure']]} />
-          <Chips label="Uses orthotics?" value={intake.uses_orthotics}
-            onChange={(v) => setI('uses_orthotics', v)}
-            options={[['no','No'],['custom','Yes — custom'],['otc','Yes — over the counter']]} />
-        </div>
-      )}
+      {step === 'intake' && (() => {
+        const q = questions[qIndex];
+        // null is what an unanswered column looks like coming back from the
+        // database, and it is NOT an answer. Treating it as one let the
+        // associate walk past a question without answering it.
+        const raw = intake[q.field];
+        const answered: boolean | null = typeof raw === 'boolean' ? raw : null;
+        const last = qIndex === questions.length - 1;
+        return (
+          <div className="card">
+            <p className="overline">Question {qIndex + 1} of {questions.length}</p>
+            <div className="flex gap-1.5 mt-3" aria-hidden="true">
+              {questions.map((_, i) => (
+                <span key={i} className={`h-1.5 flex-1 rounded-full ${
+                  i < qIndex ? 'bg-accent' : i === qIndex ? 'bg-accent/50' : 'bg-line'}`} />
+              ))}
+            </div>
+
+            <h2 className="text-[26px] leading-[1.25] font-semibold tracking-[-0.01em] mt-6 max-w-[24ch]">
+              {q.prompt}
+            </h2>
+
+            <YesNo value={answered} onChange={(v) => answer(q, v)} />
+
+            {/* Optional, and only after a Yes. Never a second questionnaire:
+                the associate can go straight to Start Scan without it. */}
+            {answered === true && q.offersDetail && !showDetail && (
+              <button type="button" className="btn-ghost mt-6"
+                onClick={() => { setShowDetail(true); showDetailEver.current = true; }}>
+                Add detail (optional)
+              </button>
+            )}
+
+            {answered === true && q.offersDetail && showDetail && (
+              <div className="mt-6 pt-6 border-t border-line">
+                <p className="text-[13px] text-ink-muted mb-4">
+                  Optional. Skip it and press {last ? 'Start Scan' : 'Next'} whenever you like.
+                </p>
+                {q.detailFields.includes('discomfort_area') && (
+                  <Chips label="Where is the discomfort?" multi value={intake.discomfort_area}
+                    onChange={(v) => setI('discomfort_area', v)}
+                    options={[['heel','Heel'],['arch','Arch'],['ball_of_foot','Ball of foot'],
+                      ['toes','Toes'],['ankle','Ankle'],['knee','Knee'],['hip_back','Hip or back']]} />
+                )}
+                {q.detailFields.includes('current_shoe_problem') && (
+                  <Chips label="What is wrong with the current shoes?" multi value={intake.current_shoe_problem}
+                    onChange={(v) => setI('current_shoe_problem', v)}
+                    options={[['too_tight','Too tight'],['too_loose','Too loose'],['heel_slips','Heel slips'],
+                      ['rubs_blisters','Rubbing'],['worn_out','Worn out'],['not_enough_support','Not enough support']]} />
+                )}
+                {q.detailFields.includes('shopping_purpose') && (
+                  <Chips label="What are they shopping for now?" value={intake.shopping_purpose}
+                    onChange={(v) => setI('shopping_purpose', v)}
+                    options={[['running','Running'],['walking','Walking'],['work','Work'],
+                      ['casual','Everyday'],['hiking','Hiking'],['sports','Sport']]} />
+                )}
+              </div>
+            )}
+
+            {/* No Next button. Answering IS advancing — a second way forward is
+                a second way to skip, and that is exactly what it did. Start Scan
+                stays deliberate: the last answer reveals it rather than firing
+                it, so nobody starts a scan with their thumb still moving. */}
+            <div className="mt-8 flex items-center gap-4">
+              {last && (
+                <button type="button" className="btn-primary text-[19px] px-8 py-4"
+                  disabled={answered === null} onClick={startScan}>Start Scan →</button>
+              )}
+              {qIndex > 0 && (
+                <button type="button" className="btn-ghost"
+                  onClick={() => { setQIndex(qIndex - 1); setShowDetail(false); }}>Back</button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {step === 'assessment' && (
         <div className="card">
@@ -279,8 +388,9 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
 
       <nav className="fixed bottom-0 left-0 right-0 bg-surface-raised border-t border-line px-6 py-3 flex justify-between">
         <button className="btn-ghost" type="button"
-          onClick={() => setStep(step === 'recommendation' ? 'assessment' : 'intake')}>Back</button>
-        {step === 'intake' && <button className="btn-primary" onClick={() => setStep('assessment')}>Assessment →</button>}
+          onClick={() => setStep(step === 'recommendation' ? 'assessment' : 'intake')}
+          style={{ visibility: step === 'intake' ? 'hidden' : 'visible' }}>Back</button>
+        {/* intake advances from inside the card: one question, one decision */}
         {step === 'assessment' && <button className="btn-primary" onClick={toRecommendation}>Recommendation →</button>}
         {step === 'recommendation' && <button className="btn-primary" onClick={finish}>Create fit report →</button>}
       </nav>

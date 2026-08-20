@@ -50,10 +50,23 @@ const listOf = (group: string, values: unknown, max = 2) =>
     ? values.map((v) => look(group, v)).filter(Boolean).slice(0, max).join(', ')
     : '';
 
+const yesNo = (v: unknown) => (v === true ? 'Yes' : v === false ? 'No' : undefined);
+
 export function buildToldUs(session: Record<string, any>): ToldUsItem[] {
   const items: ToldUsItem[] = [];
   const push = (label: string, value?: string) => { if (value) items.push({ label, value }); };
 
+  // The quick intake first — these are the questions actually asked in the
+  // default flow, so they lead. Null means "not asked", which prints nothing:
+  // a blank line reads as a question the associate skipped.
+  push('Foot discomfort reported', yesNo(session.intake_discomfort));
+  push('Current shoe discomfort or pressure', yesNo(session.intake_shoe_issue));
+  push('High activity or extended standing', yesNo(session.intake_high_activity));
+  push('New discomfort since last visit', yesNo(session.intake_new_discomfort_since_last));
+  push('Activity or use changed since last visit', yesNo(session.intake_use_changed_since_last));
+
+  // Everything below comes from the optional Add detail panel. Still read, still
+  // printed when present, never required.
   push('Shopping for', look('purpose', session.shopping_purpose));
   push('Where it bothers you', listOf('area', session.discomfort_area));
   push('What matters most', listOf('priority', session.fit_priority));

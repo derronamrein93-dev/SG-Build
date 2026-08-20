@@ -15,6 +15,14 @@ export default async function FittingPage({ params }: { params: Promise<{ id: st
       customerName={s.first_name ? `${s.first_name} ${s.last_name}` : null}
       visitNumber={s.visit_number ?? 1}
       initialIntake={{
+        // Quick-intake answers first, so a reload mid-fitting restores which
+        // questions were already answered rather than starting over.
+        intake_discomfort: s.intake_discomfort,
+        intake_shoe_issue: s.intake_shoe_issue,
+        intake_high_activity: s.intake_high_activity,
+        intake_new_discomfort_since_last: s.intake_new_discomfort_since_last,
+        intake_use_changed_since_last: s.intake_use_changed_since_last,
+        current_shoe_problem: s.current_shoe_problem ?? [],
         shopping_purpose: s.shopping_purpose, discomfort_area: s.discomfort_area ?? [],
         discomfort_timing: s.discomfort_timing, standing_hours_per_day: s.standing_hours_per_day,
         fit_priority: s.fit_priority ?? [], shoe_wear_concern: s.shoe_wear_concern,

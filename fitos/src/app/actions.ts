@@ -4,6 +4,7 @@ import { randomBytes, createHash } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { withTenant } from '../lib/db/client';
 import { currentContext } from '../lib/session';
+import { writeIntake } from '../lib/intake/save';
 import { recommend, toObservedFeatures } from '../lib/rules/engine';
 import { composeWhy } from '../lib/report/language';
 import { buildToldUs } from '../lib/report/toldUs';
@@ -11,22 +12,7 @@ import { loadCatalog } from '../lib/queries';
 
 /** Debounced autosave target. Every field write lands here; there is no Save button. */
 export async function saveIntake(sessionId: string, patch: Record<string, unknown>) {
-  const ctx = currentContext();
-  const allowed = ['shopping_purpose', 'current_shoe_problem', 'discomfort_area', 'discomfort_timing',
-    'activity_level', 'standing_hours_per_day', 'current_shoe_brand', 'current_shoe_model',
-    'current_shoe_age', 'fit_priority', 'previous_return_reason', 'uses_orthotics',
-    'shoe_wear_concern', 'intake_notes'];
-  const keys = Object.keys(patch).filter((k) => allowed.includes(k));
-  if (!keys.length) return;
-  const sets = keys.map((k, i) => `${k} = $${i + 3}`).join(', ');
-  await withTenant(ctx, async (c) => {
-    await c.query(
-      `update fitting_session
-          set ${sets}, draft_saved_at = now(), draft_synced_at = now(),
-              status = case when status = 'draft' then 'in_progress' else status end
-        where id = $1 and organization_id = $2`,
-      [sessionId, ctx.organizationId, ...keys.map((k) => patch[k])]);
-  });
+  return writeIntake(currentContext(), sessionId, patch);
 }
 
 export async function saveAssessment(sessionId: string, patch: Record<string, unknown>) {

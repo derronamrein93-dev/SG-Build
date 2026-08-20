@@ -62,6 +62,10 @@ Hand over the tablet, say **"create a fit report for this customer"**, and then
 **say nothing else**. The single most valuable data you will collect is what
 happens in the silence.
 
+The intake is now **three yes/no questions** (two for a returning customer) and
+then **Start Scan**. If the associate is still on an intake screen after a
+minute, that is a finding — write down which question they stalled on.
+
 ---
 
 ## What to watch for
@@ -74,6 +78,7 @@ Do not evaluate the associate. Watch the software.
 | --- | --- |
 | T0 | tablet handed over |
 | T1 | first field filled |
+| T1b | **Start Scan pressed** — the number this redesign is judged on |
 | T2 | recommendation on screen |
 | T3 | report handed to the customer |
 

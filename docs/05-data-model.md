@@ -561,6 +561,66 @@ error_code · reported_at.
 
 ---
 
+## Quick intake
+
+Pilot feedback: the intake was too long, and the associate wanted yes/no
+questions only. The default retail flow is now three binary questions — two for
+a returning customer — and then measurement. **Ask less. Measure more.**
+
+| | New customer | Returning customer |
+| --- | --- | --- |
+| Q1 | Any foot discomfort today? | Any new pain or discomfort since your last visit? |
+| Q2 | Do your current shoes feel uncomfortable, tight, loose, or create pressure anywhere? | Has your activity level or primary use changed since your last visit? |
+| Q3 | Regularly on your feet, running, or high-impact activity? | — |
+
+Answering advances. There is deliberately **no Next button**: a second way
+forward is a second way to skip, and in testing that is exactly what it did.
+Start Scan stays a separate, deliberate tap on the last question.
+
+`null` is not `No`. An unanswered column means the question was never asked, so
+it prints nothing on the report and votes on nothing in the engine. Treating
+null as an answer let the associate walk past a question — caught in a browser
+walk, not by a unit test.
+
+### Nothing was removed
+
+Every pre-existing intake column is still present, still writable, and still
+read by the engine and the report. `src/lib/intake/save.ts` holds the allowlist,
+and `quick-intake.test.ts` QX10 round-trips all ten of them. The optional
+**Add detail** panel — shown only after a Yes, never required — writes
+`discomfort_area`, `discomfort_timing`, `current_shoe_problem`,
+`shoe_wear_concern`, `shopping_purpose`, `activity_level` and
+`standing_hours_per_day` exactly as before.
+
+`intake_mode` records which happened: `quick` if the associate never opened Add
+detail, `detailed` if they did, so time-to-scan can be compared honestly between
+the two.
+
+### The answers are context, never diagnosis
+
+Weight **0.25** in the fit profile — a quarter of a direct observation, a tenth
+of a rule. The priority the pipeline enforces is: pressure measurements, then
+objective size and width, then prior fittings, then associate observations, and
+only then these three answers.
+
+Two of the three cast a small vote toward plush cushioning. `intake_shoe_issue`
+casts **no vote at all**: "something is wrong with the current shoes" is a
+prompt to look at the shoes, and the looking is what produces a signal worth
+acting on. Nothing votes on support or arch, because a Yes says "ask about
+this", never "this person has that condition".
+
+QX07 proves it differentially: the same observations run with every answer set
+to Yes and with none set produce identical `width`, `support_level`, `insole`,
+`category`, `toe_box` and `heel_fit`.
+
+### Time to scan
+
+`intake_duration_seconds` on `fitting_session` — customer lookup complete to
+Start Scan pressed. Target 15–30 seconds. It sits alongside
+`time_to_recommendation_ms`, which already worked this way.
+
+---
+
 ## Customer merge
 
 Two records for one person is the normal end state of a phone number given twice
