@@ -18,6 +18,9 @@ import { recommend, toObservedFeatures, type Recommendation } from '../rules/eng
 import { composeWhy } from '../report/language';
 import { buildToldUs } from '../report/toldUs';
 import type { CatalogItem } from '../rules/engine';
+import { loadCatalogForMatching, persistCandidates } from '../catalog/persist';
+import { buildRequirementProfile, requirementsFromFitting } from '../catalog/requirements';
+import { matchShoe, rankMatches } from '../catalog/match';
 
 export const ASSESSMENT_COLUMNS = [
   'size_left', 'size_right', 'width', 'width_asymmetry', 'arch_type', 'foot_shape',
@@ -72,18 +75,51 @@ export async function buildRecommendation(
          numeric ? f.value : null, f.source, f.quality ?? null]);
     }
 
-    await c.query(
+    const { rows: recRows } = await c.query(
       `insert into recommendation
         (fitting_session_id,fit_profile,flags,evidence_strength,evidence_detail,
          recommendation_engine_version,rule_set_version,catalog_version,feature_schema_version,
          assessment_schema_version,fired_rule_ids,feature_snapshot,talking_points,rationale,
          products_considered,products_avoided)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+       returning id`,
       [sessionId, rec.fitProfile, rec.flags, rec.evidenceStrength, rec.evidenceDetail,
        rec.versions.recommendation_engine_version, rec.versions.rule_set_version,
        rec.versions.catalog_version, rec.versions.feature_schema_version,
        rec.versions.assessment_schema_version, rec.firedRuleIds, rec.featureSnapshot,
        rec.talkingPoints, rec.rationale, rec.candidates.map((x) => x.productModelId), rec.avoid]);
+
+    // ── catalog matching, persisted ────────────────────────────────────────
+    // Every shoe that reaches evaluation is stored, eliminated ones included,
+    // with enough frozen context to explain the decision after the catalog
+    // changes. RLS on location_inventory is what keeps this to the local store.
+    const shoes = await loadCatalogForMatching(c, ctx.locationId);
+    const requirementProfile = buildRequirementProfile(requirementsFromFitting({
+      fitProfile: rec.fitProfile as unknown as Record<string, string>,
+      measuredWidth: row.width ?? null,
+      reportedConcerns: row.reported_concerns ?? [],
+      orthoticRequired: rec.flags.includes('removable_insole_required'),
+    }));
+    const sizes = [Number(row.size_left), Number(row.size_right)].filter(Number.isFinite);
+    const constraintCtx = {
+      requiredSize: sizes.length ? Math.max(...sizes) : null,
+      sizeAsymmetry: sizes.length === 2 ? Math.abs(sizes[0] - sizes[1]) : null,
+      requiredWidth: row.width ?? null,
+      // Width was measured by the associate on this foot, so the customer side
+      // is trustworthy; the shoe side is checked per shoe inside the evaluator.
+      widthConfidence: row.width ? 0.9 : null,
+      safetyToeRequired: rec.fitProfile.category === 'work_safety',
+      orthoticAccommodationRequired: rec.flags.includes('removable_insole_required'),
+      excludedCategories: [] as string[],
+    };
+    const matched = rankMatches(
+      shoes.map((shoe) => matchShoe(requirementProfile, shoe, constraintCtx)));
+    await persistCandidates(c, {
+      recommendationId: recRows[0].id,
+      organizationId: ctx.organizationId,
+      requirementProfile,
+      candidates: matched,
+    });
 
     return rec;
   });
@@ -142,5 +178,22 @@ export async function writeFeedback(
       `insert into pilot_feedback (organization_id,location_id,user_id,fitting_session_id,type,screen,note)
        values ($1,$2,$3,$4,$5,$6,$7)`,
       [ctx.organizationId, ctx.locationId, ctx.userId, sessionId ?? null, type, screen, note]);
+  });
+}
+
+/** The persisted explanation for the latest recommendation on a session. */
+export async function loadCandidatesForSession(ctx: TenantContext, sessionId: string) {
+  return withTenant(ctx, async (c) => {
+    const { rows: rec } = await c.query(
+      `select id from recommendation where fitting_session_id = $1
+        order by created_at desc limit 1`, [sessionId]);
+    if (!rec.length) return [];
+    const { rows } = await c.query(
+      `select rc.*, m.brand, m.model
+         from recommendation_candidate rc
+         join product_model m on m.id = rc.product_model_id
+        where rc.recommendation_id = $1
+        order by rc.eliminated, rc.rank nulls last`, [rec[0].id]);
+    return rows;
   });
 }

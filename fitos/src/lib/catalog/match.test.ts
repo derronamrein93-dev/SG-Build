@@ -280,3 +280,48 @@ test('CM27 the nine weights are the approved set', () => {
   });
   assert.equal(asPercent(0.923), 92);
 });
+
+/* ── negative controls ──────────────────────────────────────────────────────
+ *
+ * Each of these fails if one specific safeguard is taken back out. They are not
+ * here to describe behaviour -- other tests do that -- they are here so that
+ * removing a guard cannot pass quietly.
+ */
+
+test('NC01 NEGATIVE CONTROL — a one-step gap at exactly 0.70 still raises a consideration', () => {
+  // The threshold is `<= 0.70`. A single symmetric step scores exactly 0.70, so
+  // `< 0.70` drops every one of them -- which is precisely what it did once.
+  assert.equal(curveScore(1, false), 0.70, 'a one-step symmetric gap is the boundary case');
+  assert.equal(curveScore(-1, false), 0.70);
+
+  // Requirement moderate, shoe plush: one step, symmetric, exactly 0.70.
+  const profile = buildRequirementProfile([
+    { dimension: 'cushioning', value: 'moderate', source: 'associate_observation' },
+    { dimension: 'support', value: 'light_stability', source: 'associate_observation' },
+    { dimension: 'use_case', value: 'walking_comfort', source: 'associate_observation' },
+  ] as Requirement[]);
+  const m = matchShoe(profile, WIDE_COMFORT, {
+    requiredSize: 10, sizeAsymmetry: 0, requiredWidth: null, widthConfidence: null,
+    safetyToeRequired: false, orthoticAccommodationRequired: false, excludedCategories: [],
+  });
+  const cushioning = m.dimensions.find((d) => d.dimension === 'cushioning');
+  assert.equal(cushioning?.score, 0.70, 'the fixture must actually sit on the boundary');
+  assert.ok(m.considerations.some((c) => c.startsWith('cushioning')),
+    'a dimension scoring exactly 0.70 must be surfaced, not swallowed by a strict <');
+});
+
+test('NC02 NEGATIVE CONTROL — size is always evaluated as a hard constraint', () => {
+  const ctx = {
+    requiredSize: 10, sizeAsymmetry: 0, requiredWidth: null, widthConfidence: null,
+    safetyToeRequired: false, orthoticAccommodationRequired: false, excludedCategories: [],
+  };
+  for (const shoe of ALL_FIXTURES) {
+    const size = evaluateConstraints(ctx, shoe).find((r) => r.constraint === 'size_available');
+    assert.ok(size, `${shoe.productModelId}: the size constraint went missing entirely`);
+    assert.equal(size.applied, true, 'a measured size must always apply the constraint');
+  }
+  // And it must be capable of eliminating: a shoe that stops short of the foot
+  // fails, and the failure is the one reported.
+  const small = evaluateConstraints({ ...ctx, requiredSize: 14 }, SMALL_SIZES_ONLY);
+  assert.equal(firstFailure(small)?.constraint, 'size_available');
+});

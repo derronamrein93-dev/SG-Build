@@ -10,8 +10,8 @@
 import { revalidatePath } from 'next/cache';
 import { currentContext } from '../lib/session';
 import { writeIntake } from '../lib/intake/save';
-import { writeAssessment, buildRecommendation, finishFitting, writeFeedback }
-  from '../lib/fitting/mutations';
+import { writeAssessment, buildRecommendation, finishFitting, writeFeedback,
+         loadCandidatesForSession } from '../lib/fitting/mutations';
 import { loadCatalog } from '../lib/queries';
 
 /** Debounced autosave target. Every field write lands here; there is no Save button. */
@@ -35,4 +35,8 @@ export async function completeFitting(sessionId: string, overrides?: Record<stri
 
 export async function logFeedback(type: string, screen: string, note: string, sessionId?: string) {
   return writeFeedback(currentContext(), type, screen, note, sessionId);
+}
+
+export async function loadCandidates(sessionId: string) {
+  return loadCandidatesForSession(currentContext(), sessionId);
 }

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { saveIntake, saveAssessment, computeRecommendation, completeFitting } from '../../actions';
+import { saveIntake, saveAssessment, computeRecommendation, completeFitting, loadCandidates } from '../../actions';
+import { WhyPanel, type StoredCandidate } from '../../../components/WhyPanel';
 import { questionsFor, type IntakeQuestion } from '../../../lib/intake/questions';
 import { CONCERN_VALUES, CONCERN_LABELS, CONCERN_OTHER_MAX, shouldOfferConcerns,
          type ConcernValue } from '../../../lib/intake/concerns';
@@ -18,14 +19,18 @@ function Chips({ label, options, value, onChange, multi = false, hint }: {
   onChange: (v: any) => void; multi?: boolean; hint?: string;
 }) {
   const selected: string[] = multi ? (value ?? []) : value ? [value] : [];
+  // The group slug scopes the test hooks: several groups offer the same value
+  // ("narrow" is both a width and a foot shape), so the value alone is not a
+  // unique handle for a browser test.
+  const group = label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   return (
-    <div className="mb-6">
+    <div className="mb-6" data-chip-group={group}>
       <p className="label mb-2">{label}{hint && <span className="text-ink-muted font-normal"> · {hint}</span>}</p>
       <div className="flex flex-wrap gap-2">
         {options.map(([v, text]) => {
           const on = selected.includes(v);
           return (
-            <button key={v} type="button" aria-pressed={on} className="chip"
+            <button key={v} type="button" aria-pressed={on} className="chip" data-chip={v}
               onClick={() => onChange(multi ? (on ? selected.filter((s) => s !== v) : [...selected, v]) : (on ? null : v))}>
               {text}
             </button>
@@ -40,10 +45,10 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
   return (
     <div>
       <p className="label mb-2">{label}</p>
-      <div className="flex items-center gap-3">
-        <button type="button" className="chip !w-14 justify-center text-[22px]" onClick={() => onChange(Math.max(1, +(value - 0.5).toFixed(1)))}>−</button>
-        <span className="text-[28px] font-semibold tabular-nums w-16 text-center">{value.toFixed(1)}</span>
-        <button type="button" className="chip !w-14 justify-center text-[22px]" onClick={() => onChange(+(value + 0.5).toFixed(1))}>+</button>
+      <div className="flex items-center gap-3" data-stepper={label.toLowerCase()}>
+        <button type="button" data-step="down" className="chip !w-14 justify-center text-[22px]" onClick={() => onChange(Math.max(1, +(value - 0.5).toFixed(1)))}>−</button>
+        <span className="text-[28px] font-semibold tabular-nums w-16 text-center" data-size={value.toFixed(1)}>{value.toFixed(1)}</span>
+        <button type="button" data-step="up" className="chip !w-14 justify-center text-[22px]" onClick={() => onChange(+(value + 0.5).toFixed(1))}>+</button>
       </div>
     </div>
   );
@@ -104,6 +109,8 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
     size_left: 10, size_right: 10, ...initialAssessment,
   });
   const [rec, setRec] = useState<Recommendation | null>(null);
+  const [candidates, setCandidates] = useState<StoredCandidate[]>([]);
+  const [whyFor, setWhyFor] = useState<StoredCandidate | null>(null);
   const [saving, setSaving] = useState(false);
   const [, startTransition] = useTransition();
   const started = useRef(Date.now());
@@ -212,6 +219,9 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
     await saveAssessment(sessionId, assessment);
     const r = await computeRecommendation(sessionId);
     setRec(r);
+    // The persisted explanation, read back rather than recomputed. Everything
+    // the Why panel shows comes from these rows.
+    setCandidates(await loadCandidates(sessionId) as StoredCandidate[]);
     setStep('recommendation');
   }
 
@@ -420,6 +430,52 @@ export default function FittingFlow({ sessionId, customerName, visitNumber, init
           </div>
         </div>
       )}
+
+      {step === 'recommendation' && candidates.length > 0 && (
+        <section className="card mb-6">
+          <h2 className="text-[20px] font-semibold tracking-[-0.01em]">Recommended for this fitting</h2>
+          <p className="text-[13px] text-ink-muted mt-1">
+            From what this store has on the wall today.
+          </p>
+          {candidates.every((c) => c.eliminated) && (
+            <p className="mt-4 text-[16px]" data-no-candidates>
+              Nothing on this wall clears the hard requirements for this fitting —
+              see what was ruled out below.
+            </p>
+          )}
+          <ul className="mt-4 space-y-3">
+            {candidates.filter((c) => !c.eliminated).slice(0, 3).map((c) => (
+              <li key={c.product_model_id} data-candidate={c.product_model_id}
+                className="flex items-center gap-4 border border-line rounded-xl p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[17px] font-medium truncate">{c.brand} {c.model}</p>
+                  <p className="text-[13px] text-ink-muted">
+                    {c.overall_score === null
+                      ? 'Limited catalog data'
+                      : `${Math.round(Number(c.overall_score) * 100)}% match`}
+                    {c.considerations.length > 0 && ' · see considerations'}
+                  </p>
+                </div>
+                <button type="button" data-why-open={c.product_model_id}
+                  className="btn-ghost min-h-[56px] px-6 text-[17px] border border-line rounded-xl"
+                  onClick={() => setWhyFor(c)}>Why?</button>
+              </li>
+            ))}
+          </ul>
+          {/* What was actually considered. An associate asked "did it look at
+              everything?" during the Day 5 test; this answers it without a tap,
+              and it is the number a browser test can check the wall against. */}
+          <p className="text-[12px] text-ink-muted mt-4"
+            data-evaluated-count={candidates.length}
+            data-eliminated-count={candidates.filter((c) => c.eliminated).length}>
+            Considered {candidates.length} model(s) stocked at this location
+            {candidates.some((c) => c.eliminated)
+              && `; ${candidates.filter((c) => c.eliminated).length} ruled out on size, width or stock`}.
+          </p>
+        </section>
+      )}
+
+      {whyFor && <WhyPanel candidate={whyFor} onClose={() => setWhyFor(null)} />}
 
       {step === 'recommendation' && rec && (
         <div className="grid lg:grid-cols-2 gap-4">

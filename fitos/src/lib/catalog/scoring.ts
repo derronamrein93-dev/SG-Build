@@ -72,6 +72,8 @@ export const DIMENSIONS: Record<string, DimensionSpec> = {
  */
 export const LEGACY_CONFIDENCE = 0.60;
 
+export { LABEL_SOURCE, LABEL_UNKNOWN } from './labels';
+
 export type UnknownReason = 'no_value' | 'below_confidence_threshold' | 'no_requirement';
 
 export interface DimensionResult {
