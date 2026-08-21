@@ -47,10 +47,46 @@ constraint and belongs in §3, not in a curve.
 support there is no free direction: too firm and too soft are both wrong, just
 differently.
 
-### Non-ordinal dimensions
+### Use-case compatibility — replaces membership scoring
 
-- **Set membership** (`use_case`): 1.0 if the required use is present, else 0.0.
-  No partial credit — a walking shoe is not 60% of a work boot.
+Membership scoring was wrong: retail categories overlap far too much for
+"same category matches, anything else misses". A neutral running shoe is
+frequently the right answer for someone who stands all day, and a taxonomy
+label must never rule that out.
+
+`src/lib/catalog/use-case.ts` holds a deterministic asymmetric matrix over the
+ten catalog categories, at four levels:
+
+| Level | Score | Meaning |
+| --- | --- | --- |
+| `PRIMARY` | 1.00 | built for exactly this |
+| `STRONG` | 0.85 | different label, genuinely well suited |
+| `ADJACENT` | 0.65 | works, with a real trade-off |
+| `WEAK` | 0.30 | possible, rarely the right answer |
+
+Unlisted pairs default to **WEAK, never zero** — unusual is not the same as
+wrong. Only genuinely incompatible pairs score 0, and that list is deliberately
+almost empty: kids footwear against an adult fitting is the only entry.
+
+**Asymmetric on purpose.** A running shoe walks well
+(`walking_comfort ← running_neutral` = 0.85, the brief's own example); a walking
+shoe runs badly (`running_neutral ← walking_comfort` = 0.65).
+
+**It does not re-judge fit.** A stability running shoe scores 0.85 for a neutral
+running need because it is unambiguously a running shoe. Whether its support
+suits this foot is the support dimension's job, and penalising it here as well
+would count the same fact twice.
+
+**Safety stays with the safety constraint.** `work_safety ← work_support` is
+ADJACENT rather than excluded, so a work fitting that does not strictly require
+safety footwear can still be served. When safety *is* required, H4 eliminates —
+with a reason the associate can read, which a taxonomy exclusion would hide.
+
+`product_model.use_case[]` contributes secondary categories; the best of them
+wins, so a shoe built for two jobs is scored on the one that matches.
+
+### Other non-ordinal dimensions
+
 - **Boolean** (`removable_insole` as a preference rather than a constraint):
   1.0 / 0.0.
 

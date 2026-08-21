@@ -1680,6 +1680,169 @@ comment on column fitting_session.reported_concern_other is
   'verbatim within 200 chars, never parsed and never fed to inference.';
 
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 0012_catalog_taxonomy.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 0012 · catalog taxonomy. Additive, every column nullable, no defaults.
+-- Unknown is the normal state for a shoe nobody has measured yet, and it must
+-- stay distinguishable from a value someone chose.
+alter table product_model
+  add column stack_height_heel_mm      integer check (stack_height_heel_mm between 0 and 100),
+  add column stack_height_forefoot_mm  integer check (stack_height_forefoot_mm between 0 and 100),
+  add column toe_box_width             text check (toe_box_width in ('narrow','standard','wide')),
+  add column forefoot_volume           text check (forefoot_volume in ('low','standard','high')),
+  add column midfoot_volume            text check (midfoot_volume in ('low','standard','high')),
+  add column heel_width                text check (heel_width in ('narrow','standard','wide')),
+  add column heel_counter_structure    text check (heel_counter_structure in ('soft','moderate','firm')),
+  add column last_shape                text check (last_shape in ('straight','semi_curved','curved')),
+  add column cushioning_softness       text check (cushioning_softness in ('firm','balanced','soft')),
+  add column cushioning_responsiveness text check (cushioning_responsiveness in ('low','moderate','high')),
+  add column forefoot_cushioning       text check (forefoot_cushioning in ('firm','moderate','plush','max')),
+  add column heel_cushioning           text check (heel_cushioning in ('firm','moderate','plush','max')),
+  add column stability_type            text check (stability_type in ('none','guide_rails','medial_post','wide_base','rocker')),
+  add column medial_support            text check (medial_support in ('none','mild','moderate','strong')),
+  add column torsional_rigidity        text check (torsional_rigidity in ('flexible','moderate','rigid')),
+  add column rocker_geometry           text check (rocker_geometry in ('none','forefoot','full')),
+  add column forefoot_flexibility      text check (forefoot_flexibility in ('stiff','moderate','flexible')),
+  add column torsional_flexibility     text check (torsional_flexibility in ('stiff','moderate','flexible')),
+  add column fit_length_tendency       text check (fit_length_tendency in ('runs_short','true','runs_long')),
+  add column fit_width_tendency        text check (fit_width_tendency in ('runs_narrow','true','runs_wide')),
+  add column heel_hold                 text check (heel_hold in ('loose','secure','locked')),
+  add column midfoot_hold              text check (midfoot_hold in ('loose','secure','locked')),
+  add column toe_box_room              text check (toe_box_room in ('shallow','standard','generous')),
+  add column instep_room               text check (instep_room in ('low','standard','high')),
+  add column orthotic_compatibility    text check (orthotic_compatibility in ('poor','fair','good','excellent')),
+  add column depth                     text check (depth in ('standard','extra_depth')),
+  add column outsole_type              text,
+  add column upper_material            text,
+  add column upper_stretch             text check (upper_stretch in ('none','slight','stretch'));
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 0013_shoe_attribute_evidence.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 0013 · per-attribute provenance.
+--
+-- Provenance was per-row (product_model.data_source), so there was no way to say
+-- "drop came from the spec sheet, toe box is our judgement, heel counter is
+-- unknown". Confidence-aware explanation is impossible on that shape.
+--
+-- Global, like product_model: this describes shoes, not tenants. No RLS.
+create type attribute_source as enum (
+  'manufacturer_technical_spec',   -- a published spec sheet
+  'independent_measurement',       -- somebody measured the shoe
+  'manual_reviewed_research',      -- researched AND checked by a person
+  'retailer_structured_data',      -- from a retailer feed
+  'stride_guide_normalization',    -- our own REVIEWED judgement, see the check below
+  'manufacturer_marketing_claim',  -- copy, not specification
+  'outcome_derived',               -- reserved; nothing writes this yet
+  'synthetic_fixture');            -- test data, never a real catalog row
+
+create type attribute_review as enum ('unreviewed','accepted','disputed','rejected');
+
+create table shoe_attribute_evidence (
+  id               uuid primary key default gen_random_uuid(),
+  product_model_id uuid not null references product_model(id) on delete cascade,
+  attribute_name   text not null,
+  value_text       text,
+  value_numeric    numeric,
+  source_type      attribute_source not null,
+  source_url       text,
+  source_name      text,
+  captured_at      timestamptz not null default now(),
+  confidence       numeric not null check (confidence >= 0 and confidence <= 1),
+  reviewed_by      uuid,
+  review_status    attribute_review not null default 'unreviewed',
+  superseded_by    uuid references shoe_attribute_evidence(id),
+  created_at       timestamptz not null default now(),
+
+  -- A value must actually be a value.
+  constraint evidence_has_a_value
+    check (value_text is not null or value_numeric is not null),
+
+  -- A Stride Guide normalization is a REVIEWED judgement. This makes it
+  -- impossible to label an unreviewed guess as one -- the distinction between
+  -- "we decided this" and "something asserted this" is the whole point of the
+  -- table, and a convention would not survive contact with a bulk import.
+  constraint normalization_requires_review
+    check (source_type <> 'stride_guide_normalization' or review_status <> 'unreviewed'),
+
+  -- Marketing copy is not specification, and must never be dressed as one.
+  constraint marketing_confidence_ceiling
+    check (source_type <> 'manufacturer_marketing_claim' or confidence <= 0.40)
+);
+
+-- One current row per attribute; history kept via superseded_by, the same
+-- append-only shape as fitting_feature.
+create unique index shoe_attribute_evidence_current
+  on shoe_attribute_evidence (product_model_id, attribute_name)
+  where superseded_by is null;
+create index shoe_attribute_evidence_model on shoe_attribute_evidence (product_model_id);
+
+grant select on shoe_attribute_evidence to fitos_app, fitos_svc;
+grant insert, update on shoe_attribute_evidence to fitos_svc;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 0014_recommendation_candidate.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 0014 · the persisted explanation.
+--
+-- recommendation.products_considered is uuid[] -- ids only, no scores, no
+-- reasons. "Why did FitOS recommend this shoe at that time" cannot be answered
+-- today even approximately. This table is the answer, frozen at generation.
+create table recommendation_candidate (
+  id                uuid primary key default gen_random_uuid(),
+  recommendation_id uuid not null references recommendation(id) on delete cascade,
+  -- Denormalised so the policy is a simple predicate, the same move
+  -- location_customer_access and report_view already use to avoid recursion.
+  organization_id   uuid not null references organization(id) on delete cascade,
+  product_model_id  uuid not null references product_model(id),
+
+  rank              integer,
+  eliminated        boolean not null default false,
+  elimination_reason text,
+  overall_score     numeric check (overall_score >= 0 and overall_score <= 1),
+  scored_dimension_count integer not null default 0,
+  scoring_version   text not null,
+
+  hard_constraints  jsonb not null default '[]'::jsonb,
+  dimensions        jsonb not null default '[]'::jsonb,
+  considerations    jsonb not null default '[]'::jsonb,
+  -- The attribute values and weights AS THEY WERE. A later catalog edit or a
+  -- weight change must not rewrite a historical explanation.
+  catalog_snapshot  jsonb not null default '{}'::jsonb,
+  weights_snapshot  jsonb not null default '{}'::jsonb,
+  created_at        timestamptz not null default now(),
+
+  -- Eliminated candidates carry no rank or score and must say why; ranked
+  -- candidates must carry both. This is what lets the panel answer "why NOT
+  -- this shoe" without a second code path.
+  constraint eliminated_shape check (
+    (eliminated and rank is null and overall_score is null and elimination_reason is not null)
+    or (not eliminated and rank is not null))
+);
+
+create index recommendation_candidate_rec on recommendation_candidate (recommendation_id, rank);
+
+alter table recommendation_candidate enable row level security;
+alter table recommendation_candidate force  row level security;
+create policy recommendation_candidate_select on recommendation_candidate
+  for select using (organization_id = app_current_org());
+create policy recommendation_candidate_insert on recommendation_candidate
+  for insert with check (organization_id = app_current_org());
+
+-- Append-only: an explanation is a record of a decision, not a document.
+grant select on recommendation_candidate to fitos_app, fitos_svc;
+grant insert (recommendation_id, organization_id, product_model_id, rank, eliminated,
+              elimination_reason, overall_score, scored_dimension_count, scoring_version,
+              hard_constraints, dimensions, considerations, catalog_snapshot, weights_snapshot)
+  on recommendation_candidate to fitos_app, fitos_svc;
+
+
 -- ─────────────────────────────────────────────────────────────────────────────
 commit;
 
