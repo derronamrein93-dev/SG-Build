@@ -1,0 +1,403 @@
+/* =============================================================================
+ * Stride Guide kiosk — stylesheet for WebKit 12.1 (iPad mini 2, A1490).
+ *
+ * The baseline is iPadOS 12.5.7. What that rules out, and what is used instead:
+ *
+ *   gap in flexbox      Safari 14.1.  Margins, everywhere. There is no `gap`
+ *                       declaration in this file, including in grid contexts,
+ *                       so nothing depends on remembering which is which.
+ *   aspect-ratio        Safari 15.    Fixed heights and padding hacks.
+ *   dvh / svh / lvh     Safari 15.4.  A fixed-position .app, which is the only
+ *                       full-height technique iOS has never had a bug in.
+ *   :is() / :where()    Safari 14.    Selectors are written out.
+ *   inset shorthand     Safari 14.1.  top/right/bottom/left.
+ *   CSS Grid            Supported since 10.1, but with enough auto-placement
+ *                       quirks in 12 that it is not worth the risk here. Flex
+ *                       and block do everything this layout needs.
+ *   Custom properties   Supported since 9.1 — but not used, because a literal
+ *                       colour cannot fail and this file is small enough that
+ *                       the tokens are legible without indirection.
+ *
+ * Used deliberately, each with a fallback declaration before it:
+ *   env(safe-area-inset-*)   iOS 11.1+. Preceded by a plain value.
+ *   position: sticky         For one element only, and the layout is correct
+ *                            without it.
+ *
+ * Design tokens are docs/08: calm interface, vivid data. The customer-facing
+ * capture screens use the dark `scan` palette because they are the part where
+ * the hardware is doing something.
+ *
+ * Target viewport: 768 x 1024 portrait. Landscape (1024 x 768) is supported and
+ * degrades to the same single column — see the media query at the bottom.
+ * ========================================================================== */
+
+* { -webkit-box-sizing: border-box; box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  height: 100%;
+  background: #0E1214;
+  color: #14181B;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+  /* A kiosk is a fixed surface. None of these belong on one. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  overscroll-behavior: none;
+}
+
+/* Fixed rather than 100vh: iOS 12 reports 100vh as the tallest possible
+   viewport, which is wrong by the height of the toolbar in a browser tab and
+   right only in standalone mode. Fixed is right in both. */
+.app {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  overflow: hidden;
+  background: #F7F6F3;
+}
+
+/* ── screens ─────────────────────────────────────────────────────────────── */
+.screen {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  display: none;
+  background: #F7F6F3;
+  padding: 32px 40px;
+  padding-bottom: 40px;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  padding-top: 32px;
+  padding-top: calc(32px + env(safe-area-inset-top));
+}
+.screen.is-active {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+}
+.screen-dark { background: #0E1214; color: #F2F4F3; }
+.screen-error { background: #161C1F; color: #F2F4F3; }
+
+.panel {
+  -webkit-box-flex: 1; -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  min-height: 0;              /* so an overflowing child scrolls, not the page */
+}
+.panel[hidden] { display: none; }
+.panel-center {
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  text-align: center;
+}
+.panel-center .actions { -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
+.panel-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* Vertical centring without the centred text. A customer stands in front of
+   this at eye level; a short panel pinned to the top of a 1024px screen reads
+   as a web page that has not finished loading. Applied only to panels whose
+   content is short and fixed — a panel that can outgrow its screen stays
+   top-aligned, because old flexbox clips the overflowing top and puts it out
+   of reach. */
+.panel-middle {
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+}
+
+/* ── type ────────────────────────────────────────────────────────────────── */
+.display {
+  font-size: 44px; line-height: 1.15; font-weight: 600;
+  letter-spacing: -0.02em; margin: 0 0 16px;
+}
+.h1 { font-size: 32px; line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 12px; }
+.h1-question { font-size: 30px; margin-bottom: 32px; }
+.h2 { font-size: 15px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+      color: #6E7981; margin: 28px 0 8px; }
+.screen-dark .h2 { color: #8A959B; }
+.lede { font-size: 19px; color: #4E575E; margin: 0 0 24px; }
+.screen-dark .lede, .screen-error .lede { color: #B6C0C4; }
+.lede-idle { font-size: 20px; margin-bottom: 40px; }
+.step { font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+        color: #6E7981; margin: 0 0 8px; }
+.prose { font-size: 18px; line-height: 1.55; margin: 0 0 8px; }
+.footnote { font-size: 13px; color: #6E7981; margin: 32px 0 0; }
+.disclaimer { font-size: 13px; line-height: 1.5; color: #6E7981; margin: 24px 0 96px; }
+.count { font-size: 96px; font-weight: 600; line-height: 1; margin: 8px 0 24px;
+         font-variant-numeric: tabular-nums; }
+
+/* ── buttons ─────────────────────────────────────────────────────────────── */
+/* 64px, not the 48px floor. This is tapped by someone standing up, at arm's
+   length, often while talking to an associate. */
+.btn {
+  -webkit-appearance: none; appearance: none;
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  min-height: 64px;
+  padding: 0 28px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 19px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  -webkit-transition: opacity 120ms linear;
+  transition: opacity 120ms linear;
+}
+.btn:active { opacity: 0.72; }
+.btn[disabled] { opacity: 0.38; }
+.btn-primary { background: #0F5C5B; color: #FFFFFF; }
+.screen-dark .btn-primary, .screen-error .btn-primary { background: #1F9C86; color: #06100E; }
+.btn-ghost { background: transparent; border-color: #CDC9C0; color: #14181B; }
+.screen-dark .btn-ghost, .screen-error .btn-ghost { border-color: #2E383D; color: #E7ECEA; }
+.btn-hero { min-height: 88px; font-size: 24px; padding: 0 56px; }
+.btn-answer { -webkit-box-flex: 1; -webkit-flex: 1 1 0; flex: 1 1 0; min-height: 108px; font-size: 26px;
+              background: #FFFFFF; border-color: #CDC9C0; color: #14181B; }
+.btn-answer-yes { background: #E4EFEE; border-color: #0F5C5B; color: #0B4746; }
+
+.actions { margin-top: 24px; display: -webkit-box; display: -webkit-flex; display: flex; }
+.actions .btn { -webkit-box-flex: 1; -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+/* No `gap`: margin on all but the first child, which works everywhere. */
+.actions-row .btn + .btn { margin-left: 14px; }
+.actions-col { -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; }
+.actions-col .btn + .btn { margin-left: 0; margin-top: 12px; }
+.actions-wide .btn { min-width: 0; }
+
+/* The results panel scrolls; its actions should not scroll away. `sticky` is
+   the enhancement — the rule above it keeps the buttons reachable at the end of
+   the document if sticky is ignored, which on this WebKit it is not, but the
+   layout does not depend on knowing that. */
+.sticky-actions {
+  position: -webkit-sticky;
+  position: sticky;
+  bottom: 0;
+  background: #F7F6F3;
+  padding: 16px 0 4px;
+  margin-top: 8px;
+}
+
+/* ── inputs ──────────────────────────────────────────────────────────────── */
+.field-label { display: block; font-size: 15px; font-weight: 600; color: #4E575E; margin: 16px 0 6px; }
+.screen-dark .field-label { color: #A9B4B9; }
+.field {
+  -webkit-appearance: none; appearance: none;
+  display: block; width: 100%;
+  min-height: 64px;
+  padding: 0 18px;
+  border: 1px solid #CDC9C0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #14181B;
+  font-family: inherit;
+  font-size: 22px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.field-code { text-align: center; letter-spacing: 0.06em; text-transform: uppercase; font-size: 24px; }
+.field-error { color: #E06C60; font-size: 16px; margin: 12px 0 0; min-height: 20px; }
+.field-error[hidden] { display: none; }
+
+.phone-display {
+  font-size: 40px; font-weight: 600; letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0 20px; min-height: 52px;
+}
+
+/* 3 x 4 keypad, flex-wrapped. Each key is 30% of the row with margins, which
+   avoids both `gap` and grid auto-placement. */
+.keypad {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  margin: 0 -6px;
+}
+.key {
+  -webkit-appearance: none; appearance: none;
+  width: 33.333%;
+  min-height: 76px;
+  margin: 0 0 12px;
+  border: 1px solid #CDC9C0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #14181B;
+  font-family: inherit;
+  font-size: 30px;
+  font-weight: 500;
+  cursor: pointer;
+  /* Border-box widths plus an inner margin via a transparent border keeps the
+     three columns exact without a calc() per breakpoint. */
+  border-left-width: 6px; border-right-width: 6px;
+  border-left-color: transparent; border-right-color: transparent;
+  -webkit-background-clip: padding-box; background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px #CDC9C0;
+}
+.key:active { background: #EFEDE7; }
+.key-alt { font-size: 20px; color: #4E575E; }
+.screen-dark .key { background: #161C1F; color: #F2F4F3; box-shadow: inset 0 0 0 1px #2E383D; }
+.screen-dark .key:active { background: #202A2E; }
+.screen-dark .key-alt { color: #A9B4B9; }
+
+.checkline {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  min-height: 64px; margin-top: 12px; font-size: 17px; color: #4E575E;
+}
+.checkbox { width: 30px; height: 30px; margin: 0 14px 0 0; }
+
+/* ── consent, checklist, results ─────────────────────────────────────────── */
+.consent-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.consent-list li {
+  position: relative; padding: 0 0 0 34px; margin: 0 0 18px;
+  font-size: 18px; line-height: 1.45; color: #2A3238;
+}
+.tick {
+  position: absolute; left: 0; top: 6px;
+  width: 18px; height: 18px; border-radius: 9px; background: #E4EFEE;
+  border: 2px solid #0F5C5B;
+}
+
+.checklist { list-style: none; margin: 12px 0 8px; padding: 0; text-align: left; }
+.checklist li {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  min-height: 68px;
+  border-bottom: 1px solid #232B2F;
+  font-size: 20px;
+}
+.check-state {
+  width: 26px; height: 26px; border-radius: 13px;
+  border: 2px solid #3A464B; margin-right: 16px;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+}
+.checklist li.is-ok .check-state { border-color: #1F9C86; background: #1F9C86; }
+.check-label { -webkit-box-flex: 1; -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+.check-value { color: #8A959B; font-size: 17px; }
+.checklist li.is-ok .check-value { color: #1F9C86; }
+
+.fitrows { margin: 16px 0 0; padding: 0; }
+.fitrow {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: baseline; -webkit-align-items: baseline; align-items: baseline;
+  border-bottom: 1px solid #E2DFD8; padding: 14px 0;
+}
+.fitrow-label { -webkit-box-flex: 1; -webkit-flex: 1 1 auto; flex: 1 1 auto;
+                color: #4E575E; font-size: 16px; margin: 0; }
+.fitrow-value { font-weight: 600; font-size: 18px; margin: 0; text-align: right; }
+.pips { color: #0F5C5B; letter-spacing: 0.18em; margin-right: 10px; font-size: 15px; }
+
+.products { list-style: none; margin: 4px 0 0; padding: 0; }
+.products li { border-bottom: 1px solid #E2DFD8; padding: 14px 0; }
+.product-name { font-weight: 600; font-size: 19px; margin: 0; }
+.product-why { color: #4E575E; font-size: 16px; margin: 4px 0 0; }
+
+.diag { list-style: none; margin: 12px 0 0; padding: 0; }
+.diag li {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  border-bottom: 1px solid #232B2F; padding: 9px 0; font-size: 16px;
+}
+.diag-label { -webkit-box-flex: 1; -webkit-flex: 1 1 auto; flex: 1 1 auto; color: #A9B4B9; }
+.diag-value { font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 12px;
+       -webkit-flex: 0 0 auto; flex: 0 0 auto; background: #6E7981; }
+.dot-healthy { background: #1F9C86; }
+.dot-degraded { background: #C99A2E; }
+.dot-offline  { background: #C4564A; }
+.dot-unknown  { background: #55636A; }
+/* Twelve diagnostic rows plus three actions has to fit 768 x 1024 without an
+   associate having to scroll to find "Return to Idle" — the panel scrolls, but
+   the way out of it should never be below the fold. */
+.service .h1 { font-size: 23px; margin-bottom: 6px; }
+.service .lede { font-size: 16px; margin-bottom: 10px; }
+.service .step { margin-bottom: 4px; }
+.service .actions-col { margin-top: 16px; }
+.service .actions-col .btn { min-height: 56px; font-size: 17px; }
+.service .actions-col .btn + .btn { margin-top: 10px; }
+
+/* ── wordmark (also the hidden service-mode gesture target) ─────────────── */
+.wordmark {
+  -webkit-appearance: none; appearance: none;
+  background: none; border: 0; padding: 8px 4px; margin: 0 0 28px;
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  -webkit-align-self: center; align-self: center;
+  color: inherit; font-family: inherit; cursor: default;
+}
+.wordmark-mark { width: 34px; height: 34px; margin-right: 10px; display: block; }
+.wordmark-text { font-size: 22px; font-weight: 600; letter-spacing: 0.02em; }
+
+/* ── progress, glyphs, overlays ──────────────────────────────────────────── */
+.bar { width: 240px; height: 6px; border-radius: 3px; background: #232B2F;
+       margin: 8px auto 24px; overflow: hidden; }
+.bar-fill {
+  height: 100%; width: 12%; background: #1F9C86;
+  -webkit-transition: width 400ms linear; transition: width 400ms linear;
+}
+
+.glyph { width: 64px; height: 64px; border-radius: 32px; margin: 0 auto 20px; }
+.glyph-done { background: #1F9C86; }
+.glyph-attention { background: #C99A2E; }
+
+.overlay {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background: rgba(14,18,20,0.82);
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  z-index: 20;
+}
+.overlay[hidden] { display: none; }
+.overlay-card {
+  background: #FFFFFF; border-radius: 14px; padding: 32px;
+  width: 88%; max-width: 460px; text-align: center; color: #14181B;
+}
+.overlay-card .h2 { color: #14181B; font-size: 24px; letter-spacing: 0; text-transform: none; margin-top: 0; }
+
+.offline-strip {
+  position: absolute; top: 0; right: 0; left: 0;
+  background: #C99A2E; color: #221A05;
+  text-align: center; font-size: 15px; font-weight: 600;
+  padding: 10px 12px;
+  padding-top: 10px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  z-index: 30;
+}
+.offline-strip[hidden] { display: none; }
+
+[hidden] { display: none !important; }
+
+/* ── landscape (1024 x 768) ──────────────────────────────────────────────── */
+/* The kiosk is meant to stand in portrait. Landscape must not break, so the
+   vertical rhythm compresses and the panel widens; nothing reflows into
+   columns, because a two-column fitting flow on a 7.9-inch screen is worse
+   than a short scroll. */
+@media (orientation: landscape) and (max-height: 820px) {
+  .screen { padding: 20px 48px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .panel { max-width: 720px; }
+  .display { font-size: 36px; margin-bottom: 12px; }
+  .h1 { font-size: 27px; }
+  .h1-question { font-size: 26px; margin-bottom: 20px; }
+  .lede { font-size: 17px; margin-bottom: 16px; }
+  .lede-idle { margin-bottom: 24px; }
+  .count { font-size: 68px; margin: 4px 0 12px; }
+  .btn { min-height: 56px; font-size: 18px; }
+  .btn-hero { min-height: 72px; font-size: 21px; }
+  .btn-answer { min-height: 84px; font-size: 23px; }
+  .key { min-height: 58px; font-size: 25px; margin-bottom: 8px; }
+  .phone-display { font-size: 32px; margin-bottom: 12px; }
+  .checklist li { min-height: 56px; font-size: 18px; }
+  .wordmark { margin-bottom: 16px; }
+  .consent-list li { margin-bottom: 12px; font-size: 17px; }
+}
+
+/* Someone in the store has reduce-motion on. The only motion here is a width
+   transition and an opacity fade, and neither is load-bearing. */
+@media (prefers-reduced-motion: reduce) {
+  .btn, .bar-fill { -webkit-transition: none; transition: none; }
+}

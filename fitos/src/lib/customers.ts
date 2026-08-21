@@ -5,14 +5,19 @@
  * guard are the two behaviours most worth testing directly, and `server-only`
  * throws under node:test. It imports `pg`, so it can never reach a client bundle
  * regardless. Same reasoning as ./reports.
+ *
+ * The tenant context is a parameter with a default, the same shape ./catalog
+ * already uses. The associate app calls these unchanged; the kiosk passes the
+ * context it derived from its own device credential, because the kiosk is not
+ * the seeded demo associate and must never borrow that identity.
  */
-import { withTenant } from './db/client';
+import type { PoolClient } from 'pg';
+import { withTenant, type TenantContext } from './db/client';
 import { currentContext } from './session';
 import { randomUUID } from 'crypto';
 import { normalizePhone, phoneLookupHash, last4, PHONE_KEY_VERSION } from './db/identity';
 
-export async function findCustomerByPhone(raw: string) {
-  const ctx = currentContext();
+export async function findCustomerByPhone(raw: string, ctx: TenantContext = currentContext()) {
   const e164 = normalizePhone(raw);
   if (!e164) return null;
   return withTenant(ctx, async (c) => {
@@ -36,8 +41,7 @@ export async function findCustomerByPhone(raw: string) {
 
 export async function createCustomer(input: {
   firstName: string; lastName: string; phone: string; consent: boolean;
-}) {
-  const ctx = currentContext();
+}, ctx: TenantContext = currentContext()) {
   const e164 = normalizePhone(input.phone);
   if (!e164) throw new Error('A complete phone number is required.');
   // This gates on the checkbox in front of the associate — it is consent
@@ -79,8 +83,32 @@ export async function createCustomer(input: {
   });
 }
 
-export async function startSession(customerId: string | null) {
-  const ctx = currentContext();
+/**
+ * Capture a consent decision for an existing customer.
+ *
+ * Lives here, beside the capture that happens at customer creation, rather than
+ * at the kiosk that needed it — consent_record has one writer module by design
+ * (consent.test.ts asserts it), and the reason is that the append-only model is
+ * easy to get subtly wrong: a withdrawal is a NEW ROW with granted=false, never
+ * an update, and a second implementation of that is a second chance to write an
+ * UPDATE instead.
+ *
+ * This is CAPTURE. Anything asking whether consent HOLDS goes through
+ * hasConsent() in ./consent.
+ */
+export async function captureCustomerConsent(
+  c: PoolClient,
+  input: { customerId: string; locationId: string; type: string; granted: boolean; byUserId?: string | null },
+): Promise<void> {
+  await c.query(
+    `insert into consent_record
+      (scope,organization_customer_id,location_id,type,granted,
+       consent_text_version,privacy_policy_version,method,captured_by_user_id)
+     values ('organization',$1,$2,$3,$4,'consent-fit-v1.0','privacy-v1.0','tablet_checkbox',$5)`,
+    [input.customerId, input.locationId, input.type, input.granted, input.byUserId ?? null]);
+}
+
+export async function startSession(customerId: string | null, ctx: TenantContext = currentContext()) {
   return withTenant(ctx, async (c) => {
     if (customerId) {
       const { rows: t } = await c.query(

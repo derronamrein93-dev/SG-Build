@@ -168,6 +168,7 @@ test('CH10 no code outside the chokepoint queries consent_record', async () => {
     'src/lib/consent.test.ts',   // this file, which seeds fixtures
     'src/lib/customers.ts',      // consent CAPTURE at customer creation, not a check
     'src/lib/db/merge.test.ts',  // seeds consent fixtures to prove merge moves them
+    'src/lib/kiosk/device.test.ts', // counts consent rows to prove the kiosk re-captures
   ]);
   const offenders: string[] = [];
   const walk = (dir: string) => {

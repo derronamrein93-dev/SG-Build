@@ -10,7 +10,7 @@ layer, *What you told us*, and a token-gated public report route.
 | | Status |
 | --- | --- |
 | Schema + RLS (28 tables, 21 with RLS forced) | ✅ verified against Postgres 16 |
-| Tenant isolation suite (23 assertions) | ✅ passing |
+| Tenant isolation suite (28 assertions) | ✅ passing |
 | Recommendation engine, 30 rules, six-stage contract | ✅ 35 golden scenarios passing |
 | Contact identity hashing (per-org HMAC) | ✅ 5 tests passing |
 | Report language layer + *What you told us* | ✅ 16 tests passing |
@@ -23,9 +23,13 @@ layer, *What you told us*, and a token-gated public report route.
 | Fitting flow: lookup → 3 yes/no questions → scan → recommendation → report | ✅ walked end to end in a browser |
 | Quick intake (3 questions, 2 returning) | ✅ 18 tests, verified on a tablet viewport |
 | Optional customer-reported concerns | ✅ 19 tests, quote-not-claim boundary asserted |
-| Hardware ingest, follow-up UI, CSV import, auth | ⛔ not built — see "Not built yet" |
+| Customer-facing kiosk at `/kiosk` (iPad mini 2 target) | ✅ 76 tests + 75 browser checks |
+| Kiosk device identity, enrollment, revocable credential | ✅ migration 0016 |
+| Stride Guide telemetry ingest + normalized hardware state | ✅ read and write paths; no firmware |
+| Follow-up UI, CSV import, auth, report delivery transport | ⛔ not built — see "Not built yet" |
 
-**172 tests across twelve suites**, plus 23 isolation assertions, 5 preflight assertions, and 45 browser checks.
+**290 tests across seventeen suites**, plus 28 isolation assertions, 5 preflight
+assertions, 45 associate browser checks and 75 kiosk browser checks.
 
 ## Run it
 
@@ -40,6 +44,21 @@ npm run deploy:bundle # regenerate deploy/schema-bundle.sql from db/migrations/
 npm run db:isolation  # tenant isolation suite  (19 assertions)
 npm run build && npm start
 ```
+
+### The kiosk
+
+```bash
+npm run kiosk:enroll -- provision SG-A19F      # a Stride Guide unit at this location
+npm run kiosk:enroll -- ingest SG-A19F         # its telemetry token, shown once
+npm run kiosk:enroll -- code "Front Door" SG-A19F   # an enrollment code, shown once
+npm run kiosk:sim -- <ingest-token>            # DEV ONLY: post real frames to the real endpoint
+npm run kiosk:e2e -- <code> <ingest-token>     # 75 browser checks at 768x1024 and 1024x768
+npm run kiosk:compat                           # legacy-syntax scan of the shipped files
+npm run kiosk:enroll -- list                   # kiosks and units at this location
+```
+
+Then open `/kiosk` and type the code. The development associate PIN for service
+mode is `4417` (seeded, hashed with the production KDF — see `db/seed.ts`).
 
 `db/reset.sh` needs a superuser once to create the cluster roles
 (`db/bootstrap_roles.sql`). Everything after that runs as `fitos_owner`.
@@ -69,6 +88,32 @@ exported wins. See [05 · Identity peppers](../docs/05-data-model.md).
 | [07 Phase 1](../docs/07-ai-roadmap.md) language layer | `src/lib/report/language.ts` |
 | [10](../docs/10-day5-usability-test.md) Day 5 usability test | run it against `npm start` |
 | [08](../docs/08-design-language.md) design tokens | `tailwind.config.ts`, `src/app/globals.css` |
+| [13](../docs/phases/13-kiosk-ipad-mini-2.md) kiosk on the A1490 | `src/lib/kiosk/**`, `src/app/kiosk/`, `public/kiosk/` |
+
+## The kiosk ships no framework JavaScript, and that is deliberate
+
+`/kiosk` is a Route Handler returning a complete HTML document — no React, no
+hydration, no App Router runtime. The pilot device is an **iPad mini 2 (A1490)**,
+which stops at iPadOS 12.5.7 and therefore WebKit 12.1.
+
+The syntax Next emits is fine there — its default browserslist target is still
+`safari 12`, which was verified by parsing every built chunk. What is not fine is
+that `react-server-dom-webpack` reads RSC payloads with
+`response.body.getReader()`, and `fetch().body` arrived in Safari **14.1**: first
+paint would survive, client-side navigation would not. Add React 19 hydration on
+an A7 with 1 GB of RAM and the framework is paying a large cost for a screen
+whose whole job is to show one thing at a time.
+
+So the kiosk is 36 KB of hand-written ES5 and CSS (≈20 KB gzipped, all in) with
+zero `_next/` references in the document — asserted by a test. The state machine
+lives in TypeScript in `src/lib/kiosk/machine.ts` and is **serialized into the
+page as JSON**, so the browser enforces the same table the tests drive rather
+than a second copy of it. `src/lib/kiosk/compat.test.ts` parses the shipped files
+with the TypeScript compiler and fails the suite on any syntax or API the target
+engine lacks.
+
+Full reasoning, the manual A1490 checklist, and what the Chromium tests do *not*
+prove: [docs/phases/13](../docs/phases/13-kiosk-ipad-mini-2.md).
 
 ## Five things worth knowing before reading the code
 
@@ -110,14 +155,22 @@ Deliberately, per [01 §9](../docs/01-prd.md):
 
 - **Auth.** `src/lib/session.ts` returns a seeded context; real auth plugs in
   there and nowhere else, because every query already goes through `withTenant`.
+  The kiosk is the exception that proves it: it has a real, revocable device
+  credential and derives its tenant from that, never from `currentContext()`.
+  Kiosk enrollment is a CLI rather than a screen for exactly this reason — a web
+  page that mints credentials would be open to anyone who can reach the server.
 - **Deployment.** Nothing is hosted: no Vercel project, no remote database. The
   bundle and the runbook are ready in [`deploy/`](deploy/README.md), but the
   role model needs a decision first — `fitos_svc` requires `BYPASSRLS`, which
   Supabase's `postgres` role cannot grant.
 - Follow-up completion UI, outcome capture sheet, pilot-feedback sheet, override
   controls, CSV import, print stylesheet polish, email delivery, QR sharing.
-- Hardware ingest — `scan` and `scan_derivation` exist and are unused, which is
-  the point.
+- **Report delivery transport.** The kiosk captures `receive_report` consent and
+  records the request; nothing sends. docs/04 §3 specifies an emailed link and
+  nothing implements it.
+- Hardware ingest is now built for the kiosk path — `scan` and `scan_derivation`
+  are written from bridge-supplied captures. The ESP32 firmware and the bridge
+  itself are out of scope.
 
 ## Known rough edges
 

@@ -57,6 +57,42 @@ insert into consent_record (id, scope, person_identity_id, location_id, type, gr
    null,'portable_profile_share', true,
    'consent-identity-v1.0','privacy-v1.0','mystrideid_account');
 
+-- Kiosks and Stride Guide units, one per organization. The kiosk is the least
+-- trusted thing in FitOS: unattended, in reach of the public, on a shop floor.
+-- Tests 22-25 are about what one can see when it goes wrong.
+insert into device (id, serial, hardware_revision, status) values
+  ('aaaaaaaa-7777-0000-0000-000000000001','SG-AAAA','rev-b','installed'),
+  ('bbbbbbbb-7777-0000-0000-000000000001','SG-BBBB','rev-b','installed');
+
+insert into device_installation (id, device_id, organization_id, location_id, ingest_token_hash) values
+  ('aaaaaaaa-8888-0000-0000-000000000001','aaaaaaaa-7777-0000-0000-000000000001',
+   'aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-1111-0000-0000-000000000001', digest('ingest-a','sha256')),
+  ('bbbbbbbb-8888-0000-0000-000000000001','bbbbbbbb-7777-0000-0000-000000000001',
+   'bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-1111-0000-0000-000000000001', digest('ingest-b','sha256'));
+
+insert into device_health_event (device_id, event_type, component_status) values
+  ('aaaaaaaa-7777-0000-0000-000000000001','status','{"matrixReady":true}'),
+  ('bbbbbbbb-7777-0000-0000-000000000001','status','{"matrixReady":true}');
+
+insert into app_user (id, location_id, organization_id, first_name, role) values
+  ('aaaaaaaa-2222-0000-0000-000000000009','aaaaaaaa-1111-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000001','FitOS Kiosk','kiosk_device'),
+  ('bbbbbbbb-2222-0000-0000-000000000009','bbbbbbbb-1111-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','FitOS Kiosk','kiosk_device');
+
+insert into kiosk_device (id, organization_id, location_id, acting_user_id, display_name,
+                          stride_guide_device_id, credential_hash) values
+  ('aaaaaaaa-9999-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000001',
+   'aaaaaaaa-1111-0000-0000-000000000001','aaaaaaaa-2222-0000-0000-000000000009','Northside Front',
+   'aaaaaaaa-7777-0000-0000-000000000001', digest('credential-a','sha256')),
+  ('bbbbbbbb-9999-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001',
+   'bbbbbbbb-1111-0000-0000-000000000001','bbbbbbbb-2222-0000-0000-000000000009','Southside Front',
+   'bbbbbbbb-7777-0000-0000-000000000001', digest('credential-b','sha256'));
+
+insert into kiosk_enrollment_code (organization_id, location_id, code_hash, display_name, expires_at) values
+  ('aaaaaaaa-0000-0000-0000-000000000001','aaaaaaaa-1111-0000-0000-000000000001',
+   digest('code-a','sha256'),'Pending A', now() + interval '15 minutes'),
+  ('bbbbbbbb-0000-0000-0000-000000000001','bbbbbbbb-1111-0000-0000-000000000001',
+   digest('code-b','sha256'),'Pending B', now() + interval '15 minutes');
+
 -- Audit rows for both organizations, seeded through the service role.
 -- A merged-away record in Org B, so assertion 20 has something to fail to see.
 insert into organization_customer (id, organization_id, created_at_location_id, first_name, last_name, phone_lookup_hash, phone_key_version)
@@ -235,6 +271,67 @@ begin
     raise exception 'TEST 20 FAILED: % foreign merged records visible', n;
   end if;
   raise notice 'PASS 20 · merged records do not leak across tenants';
+
+  -- 22 · a kiosk is a tenant-scoped record like any other. A store must not be
+  --      able to enumerate another retailer's devices — a kiosk row names a
+  --      location, a display name and the hardware behind it.
+  select count(*) into n from kiosk_device;
+  if n <> 1 then
+    raise exception 'TEST 22 FAILED: expected 1 own kiosk, saw %', n;
+  end if;
+  select count(*) into n from kiosk_device
+   where organization_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+  if n <> 0 then
+    raise exception 'TEST 22 FAILED: % foreign kiosk rows visible', n;
+  end if;
+  raise notice 'PASS 22 · kiosk_device scoped to its own tenant';
+
+  -- 23 · the application role cannot mint or rewrite a device credential.
+  --      Enrollment and revocation run as fitos_svc, so a compromised app
+  --      process cannot issue itself a kiosk.
+  begin
+    update kiosk_device set credential_hash = digest('forged','sha256')
+     where id = 'aaaaaaaa-9999-0000-0000-000000000001';
+    raise exception 'TEST 23 FAILED: the app role rewrote a device credential';
+  exception when insufficient_privilege then
+    raise notice 'PASS 23 · kiosk credentials are not writable by the app role';
+  end;
+
+  -- 24 · enrollment codes are invisible to the application role entirely. A
+  --      browser presenting a code has no tenant context, so redemption is
+  --      necessarily a service-role hash lookup — the app never needs to read
+  --      the table, and therefore must not be able to.
+  begin
+    select count(*) into n from kiosk_enrollment_code;
+    raise exception 'TEST 24 FAILED: the app role read % enrollment codes', n;
+  exception when insufficient_privilege then
+    raise notice 'PASS 24 · enrollment codes unreadable by the app role';
+  end;
+
+  -- 25 · hardware telemetry is scoped through the installation. Before 0016
+  --      device_health_event had no policy at all; the kiosk is its first
+  --      reader, and it must only ever see its own store's unit.
+  select count(*) into n from device_health_event;
+  if n <> 1 then
+    raise exception 'TEST 25 FAILED: expected 1 own telemetry row, saw %', n;
+  end if;
+  select count(*) into n from device_health_event
+   where device_id = 'bbbbbbbb-7777-0000-0000-000000000001';
+  if n <> 0 then
+    raise exception 'TEST 25 FAILED: % foreign telemetry rows visible', n;
+  end if;
+  raise notice 'PASS 25 · device_health_event scoped through its installation';
+
+  -- 26 · and the app role cannot forge a frame. Faking hardware readiness is
+  --      exactly what the kiosk must never be able to do, so the write path
+  --      belongs to the bridge's own credential and to fitos_svc.
+  begin
+    insert into device_health_event (device_id, event_type, component_status)
+    values ('aaaaaaaa-7777-0000-0000-000000000001','status','{"weightStable":true}');
+    raise exception 'TEST 26 FAILED: the app role wrote a telemetry frame';
+  exception when insufficient_privilege then
+    raise notice 'PASS 26 · telemetry frames cannot be written by the app role';
+  end;
 
   -- 21 · the app role cannot merge. Authority is fitos_svc only.
   begin

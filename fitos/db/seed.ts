@@ -4,6 +4,18 @@
  */
 import { withService } from '../src/lib/db/client';
 import { normalizePhone, phoneLookupHash, last4, PHONE_KEY_VERSION } from '../src/lib/db/identity';
+import { hashPin } from '../src/lib/kiosk/pin';
+
+/**
+ * Development PIN for the kiosk's service panel. In the repository on purpose,
+ * for the same reason dev.env is: the panel is unreachable without one, and a
+ * demo that cannot open it cannot be checked. It is hashed with the production
+ * KDF, so nothing here weakens the format — only the secrecy of this one value,
+ * which is worth exactly one seeded store.
+ *
+ * A real location sets its own PINs. Nothing reads this constant at runtime.
+ */
+const DEV_ASSOCIATE_PIN = '4417';
 
 const ORG = 'aaaaaaaa-0000-0000-0000-000000000001';
 const LOC = 'aaaaaaaa-1111-0000-0000-000000000001';
@@ -40,10 +52,11 @@ async function main() {
       [LOC, ORG, LOC2]);
 
     await c.query(
-      `insert into app_user (id,location_id,organization_id,first_name,last_name,role) values
-       ('aaaaaaaa-2222-0000-0000-000000000001',$1,$2,'Denise','Okonkwo','associate'),
-       ('aaaaaaaa-2222-0000-0000-000000000002',$1,$2,'Marcus','Hale','associate'),
-       ('aaaaaaaa-2222-0000-0000-000000000003',$1,$2,'Ray','Whitfield','owner')`, [LOC, ORG]);
+      `insert into app_user (id,location_id,organization_id,first_name,last_name,role,pin_hash) values
+       ('aaaaaaaa-2222-0000-0000-000000000001',$1,$2,'Denise','Okonkwo','associate',$3),
+       ('aaaaaaaa-2222-0000-0000-000000000002',$1,$2,'Marcus','Hale','associate',null),
+       ('aaaaaaaa-2222-0000-0000-000000000003',$1,$2,'Ray','Whitfield','owner',null)`,
+      [LOC, ORG, hashPin(DEV_ASSOCIATE_PIN)]);
 
     for (const [brand, model, category, support, cushion, widths, toeBox, heel, removable, msrp, bestFor] of CATALOG) {
       const { rows } = await c.query(
