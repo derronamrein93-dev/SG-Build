@@ -1,0 +1,16 @@
+alter table product_model
+  drop column if exists upper_stretch, drop column if exists upper_material,
+  drop column if exists outsole_type, drop column if exists depth,
+  drop column if exists orthotic_compatibility, drop column if exists instep_room,
+  drop column if exists toe_box_room, drop column if exists midfoot_hold,
+  drop column if exists heel_hold, drop column if exists fit_width_tendency,
+  drop column if exists fit_length_tendency, drop column if exists torsional_flexibility,
+  drop column if exists forefoot_flexibility, drop column if exists rocker_geometry,
+  drop column if exists torsional_rigidity, drop column if exists medial_support,
+  drop column if exists stability_type, drop column if exists heel_cushioning,
+  drop column if exists forefoot_cushioning, drop column if exists cushioning_responsiveness,
+  drop column if exists cushioning_softness, drop column if exists last_shape,
+  drop column if exists heel_counter_structure, drop column if exists heel_width,
+  drop column if exists midfoot_volume, drop column if exists forefoot_volume,
+  drop column if exists toe_box_width, drop column if exists stack_height_forefoot_mm,
+  drop column if exists stack_height_heel_mm;

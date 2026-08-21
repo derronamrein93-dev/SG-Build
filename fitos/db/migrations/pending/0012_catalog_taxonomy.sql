@@ -1,0 +1,33 @@
+-- 0012 · catalog taxonomy. Additive, every column nullable, no defaults.
+-- Unknown is the normal state for a shoe nobody has measured yet, and it must
+-- stay distinguishable from a value someone chose.
+alter table product_model
+  add column stack_height_heel_mm      integer check (stack_height_heel_mm between 0 and 100),
+  add column stack_height_forefoot_mm  integer check (stack_height_forefoot_mm between 0 and 100),
+  add column toe_box_width             text check (toe_box_width in ('narrow','standard','wide')),
+  add column forefoot_volume           text check (forefoot_volume in ('low','standard','high')),
+  add column midfoot_volume            text check (midfoot_volume in ('low','standard','high')),
+  add column heel_width                text check (heel_width in ('narrow','standard','wide')),
+  add column heel_counter_structure    text check (heel_counter_structure in ('soft','moderate','firm')),
+  add column last_shape                text check (last_shape in ('straight','semi_curved','curved')),
+  add column cushioning_softness       text check (cushioning_softness in ('firm','balanced','soft')),
+  add column cushioning_responsiveness text check (cushioning_responsiveness in ('low','moderate','high')),
+  add column forefoot_cushioning       text check (forefoot_cushioning in ('firm','moderate','plush','max')),
+  add column heel_cushioning           text check (heel_cushioning in ('firm','moderate','plush','max')),
+  add column stability_type            text check (stability_type in ('none','guide_rails','medial_post','wide_base','rocker')),
+  add column medial_support            text check (medial_support in ('none','mild','moderate','strong')),
+  add column torsional_rigidity        text check (torsional_rigidity in ('flexible','moderate','rigid')),
+  add column rocker_geometry           text check (rocker_geometry in ('none','forefoot','full')),
+  add column forefoot_flexibility      text check (forefoot_flexibility in ('stiff','moderate','flexible')),
+  add column torsional_flexibility     text check (torsional_flexibility in ('stiff','moderate','flexible')),
+  add column fit_length_tendency       text check (fit_length_tendency in ('runs_short','true','runs_long')),
+  add column fit_width_tendency        text check (fit_width_tendency in ('runs_narrow','true','runs_wide')),
+  add column heel_hold                 text check (heel_hold in ('loose','secure','locked')),
+  add column midfoot_hold              text check (midfoot_hold in ('loose','secure','locked')),
+  add column toe_box_room              text check (toe_box_room in ('shallow','standard','generous')),
+  add column instep_room               text check (instep_room in ('low','standard','high')),
+  add column orthotic_compatibility    text check (orthotic_compatibility in ('poor','fair','good','excellent')),
+  add column depth                     text check (depth in ('standard','extra_depth')),
+  add column outsole_type              text,
+  add column upper_material            text,
+  add column upper_stretch             text check (upper_stretch in ('none','slight','stretch'));
