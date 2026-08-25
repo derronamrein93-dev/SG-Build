@@ -7,6 +7,10 @@ This repo holds two things:
 | **[Product blueprint](docs/README.md)** | PRD, UX spec, recommendation engine, data model and build plan for **Stride Guide FitOS** — the store-side fitting interface. Start here. |
 | **Landing page** (this file, below) | The marketing site at the repo root. |
 
+> **Note:** [`playhub/`](playhub/README.md) is an **unrelated product** (a children's
+> entertainment platform) parked here temporarily. It shares no code with Stride
+> Guide and is intended to be extracted into its own repository — see its README.
+
 ---
 
 ## Landing Page
