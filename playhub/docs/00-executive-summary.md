@@ -112,8 +112,10 @@ Three things now wait on you:
    destructive runs until you say so.
 2. **Pick a name** — [26 — Name Candidates](26-naming-candidates.md). It gates
    the domain, which gates Apple enrolment, which gates distribution.
-3. **Start the legal entity and D-U-N-S** — the longest lead time in the whole
-   project, and pure paperwork ([24 — Apple Account](24-apple-account-and-identifiers.md)).
+3. **Close three Apple-enrolment gaps for Kicks-Stand LLC** — verify the entity
+   facts, put the LLC's name on a website, and get a D-U-N-S. About 1–2 weeks of
+   waiting rather than the 3–8 I first budgeted, because the entity already
+   exists ([24 — Apple Enrolment](24-apple-account-and-identifiers.md)).
 
 Your part of Phase 0 is roughly two hours in App Store Connect once the account
 exists, scripted step by step in

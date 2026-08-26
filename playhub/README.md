@@ -57,7 +57,7 @@ a repo scoped to a different product), separate issue tracker, and a clean
 | 21 | [Critical Review](docs/21-critical-review.md) | Where I think your brief is wrong |
 | 22 | [Decision Log](docs/22-decision-log.md) | **What's settled, what's assumed, what's still open** |
 | 23 | [Flame Usage Policy](docs/23-flame-usage-policy.md) | Where a game loop earns its place, and where it doesn't |
-| 24 | [Apple Account & Identifiers](docs/24-apple-account-and-identifiers.md) | Organization enrolment, D-U-N-S, and the provisional IDs we build on today |
+| 24 | [Apple Enrolment & Identifiers](docs/24-apple-account-and-identifiers.md) | Kicks-Stand LLC as publisher, the verification gaps, and the provisional IDs |
 | 25 | [Repository Migration Plan](docs/25-repository-migration-plan.md) | ⏸ Exact extraction steps — awaiting approval |
 | 26 | [Name Candidates](docs/26-naming-candidates.md) | Ten options, honestly assessed |
 | 27 | [Phase 0 Status](docs/27-phase-0-status.md) | **What is built, compiled and tested right now** |

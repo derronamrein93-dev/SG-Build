@@ -20,22 +20,35 @@ bumping · size and performance reporting · this documentation.
 
 Each item below is: **where · exactly what · expected result · how to verify.**
 
-### 2.1 Apple Developer Program — *~30 min + up to 48 h waiting* — **blocks everything**
-1. **Open:** <https://developer.apple.com/programs/enroll/>
-2. **Do:** enrol as an Individual (fastest) or Organization (needs a D-U-N-S
-   number and 1–2 extra weeks — decide now, because moving an app between
-   accounts later is painful). Pay $99/yr.
-3. **Expect:** an approval email; <https://developer.apple.com/account> shows
+### 2.1 Apple Developer Program, as **Kicks-Stand LLC** — *~1 h of work, ~1–2 weeks of waiting*
+Full detail and the verification checklist: [doc 24](24-apple-account-and-identifiers.md).
+1. **Confirm the entity facts** on INBiz — exact legal name, good standing,
+   current Business Entity Report, and the address of record (**it becomes the
+   publicly published EU DSA trader address**; move it off your home address
+   first if it is one).
+2. **Close the website gap:** strideguide.co currently names no legal entity.
+   Either add "Kicks-Stand LLC" plus its address to that site, or register an
+   entity domain (`kicksstand.co` / `kicksstandllc.com` appear free) and publish
+   a real corporate one-pager. A placeholder page is an explicit rejection reason.
+3. **Create a work email on that domain.** A gmail.com address is rejected.
+4. **Open:** Apple's D-U-N-S lookup. **Search before requesting** — Kicks-Stand
+   LLC may already be in D&B's database. Allow ~5 business days if not.
+5. **Open:** <https://developer.apple.com/programs/enroll/> → enrol as an
+   **Organization**. Pay $99/yr. Complete identity verification; Apple may
+   telephone to confirm your authority to bind the LLC.
+6. **Expect:** an approval email; <https://developer.apple.com/account> shows
    Certificates, Identifiers & Profiles.
-4. **Verify:** "Certificates, IDs & Profiles" is visible in the sidebar.
+7. **Verify:** "Certificates, IDs & Profiles" is visible in the sidebar.
 
-### 2.2 Choose the bundle ID — *~10 min* — **effectively permanent**
+### 2.2 Choose the bundle ID — *~10 min* — **cannot change after the first upload**
+> ⏸ **Do this only after brand clearance.** A bundle ID is fixed once a build has
+> been uploaded and survives even an app transfer. The release lane already
+> refuses to run while it contains `dev.provisional`.
 1. **Open:** <https://developer.apple.com/account/resources/identifiers/list>
-2. **Do:** ➕ → App IDs → App → Description "Playhub" → Bundle ID **Explicit**,
-   using a **brand-neutral reverse-DNS you own**, e.g. `com.<yourdomain>.playhub`.
-   **Do not** encode a product name you may rebrand (`com.x.dinofun` would be a
-   permanent mistake). Enable no capabilities (we need none: no push, no iCloud,
-   no sign-in).
+2. **Do:** ➕ → App IDs → App → Bundle ID **Explicit**, rooted in the **product's**
+   domain — `co.<brand>.app` — **not** the entity's. The children's product should
+   carry no trace of the footwear business at the identifier level. Enable no
+   capabilities (we need none: no push, no iCloud, no sign-in).
 3. **Expect:** the identifier appears in the list.
 4. **Verify:** it is selectable when creating the app record in the next step.
 
@@ -70,8 +83,10 @@ Each item below is: **where · exactly what · expected result · how to verify.
 2. **Do:** Team Keys → ➕ → name "CI" → Access **App Manager** → Generate →
    **download the `.p8` once** (it cannot be re-downloaded). Note the Key ID and
    Issuer ID.
-3. **Do:** in GitHub → repo → Settings → Secrets and variables → Actions, add
-   `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (paste the whole file contents).
+3. **Do:** in GitHub → **this repo** → Settings → Secrets and variables → Actions,
+   add `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (paste the whole file
+   contents). ⚠️ **Repository-scoped, never organization-level** — an org secret
+   would be readable by any Stride Guide workflow.
 4. **Expect:** the key is listed as Active.
 5. **Verify:** push a tag; `release.yaml` uploads a build and TestFlight shows it
    ~20 minutes later. **After this, you never build the app yourself again.**
@@ -118,8 +133,16 @@ Review the PR · approve the TestFlight build · run the manual device pass (doc
 §6) · submit · answer any review questions.
 
 ## 4. What would make this harder, and how to avoid it
-- **Don't create the App Store Connect record under a personal account you may
-  later want to move to a company.** Decide Individual vs Organization now.
-- **Don't rename product IDs or the bundle ID after launch.** They're permanent.
+- **Don't request the D-U-N-S before settling the LLC's name.** It must match the
+  registered name exactly; renaming afterwards means re-registering and
+  re-verifying with Apple ([doc 24 §1](24-apple-account-and-identifiers.md)).
+- **Don't enrol with the LLC's home address on file.** It becomes the publicly
+  published EU DSA trader address on your App Store product page.
+- **Don't upload a build under the provisional bundle ID.** It is fixed from the
+  first upload onward and survives even an app transfer. The release lane blocks
+  this, but don't disable that guard.
+- **Don't put App Store Connect secrets at GitHub organization level.** Any
+  Stride Guide workflow would be able to read them.
+- **Don't rename product IDs after launch.** They're permanent.
 - **Don't approve art that hasn't passed the validator.** A pack that "looks
   right" but is 40 MB or the wrong dimensions costs a re-commission.

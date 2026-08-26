@@ -37,7 +37,7 @@ before extraction, §7 has the subtree-split variant. It should not be needed.
 | Property | Value |
 | --- | --- |
 | Name | `<brand>-app`, decided with [doc 26](26-naming-candidates.md). Interim: `playhub-app` |
-| Owner | `derronamrein93-dev` initially; **transfer to the business entity's GitHub org** once it exists ([doc 24](24-apple-account-and-identifiers.md)) |
+| Owner | `derronamrein93-dev`. A Kicks-Stand LLC GitHub org is optional — but if one is used, **secrets must stay repository-scoped, never organization-level** ([doc 24 §5](24-apple-account-and-identifiers.md)) |
 | Visibility | **Private** |
 | Default branch | `main` |
 | License | none (proprietary) — `LICENSE` intentionally absent, `UNLICENSED` in pubspec |
@@ -48,7 +48,7 @@ before extraction, §7 has the subtree-split variant. It should not be needed.
 | --- | --- | --- |
 | Repository | its own | ❌ never |
 | CI / CD | `.github/workflows/ci.yaml`, `release.yaml` | ❌ own runners, own minute budget (this one needs **paid macOS minutes**; SG-Build must not fund or be charged for them) |
-| Secrets | repo-level GitHub Actions secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `MATCH_PASSWORD`, `MATCH_GIT_URL` | ❌ **critical** — App Store Connect keys must never sit in a repo scoped to another product |
+| Secrets | **repository-scoped** GitHub Actions secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `MATCH_PASSWORD`, `MATCH_GIT_URL` | ❌ **critical** — and never *organization*-level, even though both products now share a legal owner. An org-level `ASC_KEY_P8` would be readable by any Stride Guide workflow |
 | Environment config | `.env.example`, `ios/Config/*.xcconfig`, `--dart-define` files | ❌ |
 | Bundle / application ID | `ios/Config/App.xcconfig` (provisional `dev.provisional.playhub`) | ❌ |
 | Signing | its own `fastlane match` certificates repo | ❌ separate certificate store entirely |

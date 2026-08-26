@@ -1,145 +1,273 @@
-# 24 — Apple Organization Account & Provisional Identifiers
+# 24 — Apple Enrolment (Kicks-Stand LLC) & Provisional Identifiers
 
-> **Decision (approved):** the app will be owned and published by a **business
-> entity**, and explicitly **not** by the existing Stride Guide / Kicks-Stand
-> business. Development proceeds immediately on **provisional identifiers**.
-> **Status:** accepted. **Reversal cost:** low if the indirection below is kept.
+> **Decision (approved):** **Kicks-Stand LLC**, an existing Indiana LLC, is the
+> legal entity that owns and publishes this product. **No new entity is being
+> formed.** Development proceeds on provisional identifiers.
+> **Status:** accepted. **Reversal cost:** low — see §7 on App Transfer.
 
 ---
 
-## 1. What Apple actually requires for an Organization account
+## 1. Assessment: is Kicks-Stand LLC the right publisher?
 
-Verified against Apple's current documentation (sources at the foot of this page):
+You asked me to flag any material reason not to. I looked at all five axes and
+found **no blocker and no reason to form a new entity**. Two things are worth
+knowing before you commit, and one of them is time-sensitive.
 
-| Requirement | Detail | Gotcha |
+| Axis | Verdict | Notes |
 | --- | --- | --- |
-| **A legal entity** | The organization must be a legal entity able to enter contracts with Apple | **Apple does not accept DBAs, fictitious business names, trade names, or branches.** A sole proprietorship with a trading name is not enough — you need an actual registered entity (LLC, Corp, Ltd, GmbH…) |
-| **D-U-N-S Number** | A nine-digit Dun & Bradstreet identifier **registered to that exact legal entity** | Must match the entity name and address precisely. A D-U-N-S registered to a different or older entity name will fail verification |
-| **A public website** | Publicly available, functional, on a domain associated with the organization | Social media pages, parked domains, registrar placeholder pages and near-empty sites are explicitly rejected |
-| **A work email on that domain** | Your enrolling email must be at the organization's domain | A gmail.com address will not do — this is a hard blocker people hit late |
-| **Legal authority to bind** | You must be owner/founder, executive, senior project lead, or an employee with granted authority | Apple may call to verify |
-| **Identity verification** | Government ID via the Apple Developer app or web flow | Straightforward but sequential |
-| **$99/year** | Paid at the end of enrolment | |
+| **Legal** | ✅ No issue | Apple requires a legal entity that can enter contracts. An existing LLC qualifies exactly where a DBA, trade name or sole proprietorship would be rejected outright. You are ahead, not behind. |
+| **Tax** | ✅ Simplifies | One entity, one return. Keep the two products as separate bookkeeping classes and ideally separate bank sub-accounts so per-product P&L stays clean — that is an accounting choice, not a legal-structure one. |
+| **Apple enrolment** | ✅ No blocker, ⚠️ three gaps to close | All three are hours of work. §3. |
+| **Liability** | ⚠️ Commingled, but manageable | A judgment against either product reaches the other's assets. The mitigations are insurance and good hygiene, not a second entity — and this product's exposure is unusually low because it collects no data at all ([doc 13](13-privacy-and-child-safety.md)). Raise it with your attorney; don't restructure for it. |
+| **Branding** | ⚠️ **One material finding** | §2. |
 
-### The dependency chain — this is what sets the lead time
+### The two things worth knowing
+
+**⚠️ The App Store publishes your legal entity name.** The seller/developer line
+on the product page shows the legal entity — so a children's app would read
+**"Kicks-Stand LLC"**. Separately, EU **Digital Services Act** trader rules
+require Apple to verify and publish a trader **address, phone number and email**
+on the product page in all 27 EU territories, and every developer must declare a
+trader status whether or not they ship to the EU.
+
+Two consequences:
+
+1. A footwear-flavoured LLC name under a children's app is odd but not
+   disqualifying — plenty of apps ship under unrelated holding-company names. It
+   is a cosmetic cost you may simply accept.
+2. **The DSA address is published publicly.** If Kicks-Stand LLC's address of
+   record is your home, that address goes on a public App Store page. Use a
+   registered-agent or commercial mail address instead. This is worth fixing
+   before enrolment, not after.
+
+**⏱ If you are going to rename the LLC, decide now — not later.** Indiana permits
+a name amendment, and if Kicks-Stand LLC is now the holding entity for two
+unrelated products, a neutral name serves both better than a footwear name does.
+I am **not** recommending you rename; I am flagging that the decision has a hard
+deadline you can't see from here:
+
+> **A D-U-N-S Number must be registered to the exact legal entity name.** Rename
+> the LLC *after* you obtain a D-U-N-S and you must re-register it and re-verify
+> with Apple — weeks lost. Rename *before*, and it costs one Indiana filing.
+
+So: settle the name question this week, either way, then start the D-U-N-S.
+
+## 2. What Apple requires, and where Kicks-Stand LLC stands
+
+| Requirement | Status | Action |
+| --- | --- | --- |
+| A legal entity (not a DBA/trade name/branch) | ✅ **Satisfied** | none |
+| D-U-N-S registered to that exact entity | ❓ **Verify** | §3.1 |
+| Public, functional website on a domain **associated with the organization** | ⚠️ **Gap** | §3.2 |
+| Work email on that domain | ⚠️ **Partial** | §3.3 |
+| Enroller has authority to bind the entity | ✅ Presumed (you are the owner) | confirm you are listed as member/manager |
+| Government-ID identity verification | ⏳ Pending | during enrolment |
+| $99/year | ⏳ Pending | at the end |
+
+## 3. Your verification checklist
+
+### 3.1 Entity facts to confirm before requesting anything
+
+Pull these from **INBiz** (Indiana's business portal) and have them side by side —
+a mismatch in any one of them is the usual cause of a failed D-U-N-S match:
+
+- [ ] **Exact legal name**, character for character. `Kicks-Stand LLC` vs
+      `Kicks Stand LLC` vs `Kicks-Stand, L.L.C.` are three different strings to a
+      verification system. Use whatever INBiz shows, exactly.
+- [ ] **Status is Active / in good standing**, and the Indiana **Business Entity
+      Report** is current (Indiana LLCs file every two years — a lapsed report is
+      a quiet way to be "not in good standing" at the worst moment).
+- [ ] **Principal office address** on record. **This becomes the publicly
+      published DSA trader address.** Change it to a registered agent or
+      commercial address first if it is your home.
+- [ ] **Registered agent** on file.
+- [ ] **Formation date** and **EIN** (both are asked for in D&B/Apple flows).
+- [ ] You are listed as **member or manager**, i.e. authorised to bind.
+
+### 3.2 The website gap — I checked, and this one is real
+
+Kicks-Stand LLC's only live web presence is **strideguide.co**, and:
 
 ```
-   Register the legal entity            ← days to weeks, jurisdiction-dependent
-              ↓
-   Buy the domain                       ← minutes  (can be done TODAY)
-              ↓
-   Stand up a real website on it        ← hours    (can be done TODAY-ish)
-              ↓
-   Create a work email on that domain   ← hours
-              ↓
-   Request / verify the D-U-N-S Number  ← Apple's lookup form; commonly ~5 business
-                                          days, occasionally longer
-              ↓
-   Enrol as an Organization             ← days, plus possible verification call
-              ↓
-   Accept Paid Apps agreement, tax, banking
-              ↓
-   Register bundle ID · create products · issue certificates
+index.html:1045  © <span id="year">2026</span> Stride Guide. All rights reserved.
 ```
 
-**Realistic total: 3–8 weeks.** Every step is sequential. None of it is
-engineering work, and all of it can run in parallel with development.
+**The site never names Kicks-Stand LLC anywhere.** Apple requires the domain to
+be *associated with your organization*, and a site that names a product but not
+the entity is exactly the kind of thing that stalls verification.
 
-## 2. Start these immediately (today, in this order)
+DNS check, just now:
 
-| # | Action | Why now | Blocks |
-| --- | --- | --- | --- |
-| 1 | **Decide the entity**: jurisdiction, structure, and — importantly — that it is a *new* entity, not Kicks-Stand / Stride Guide | It is the root of the whole chain | everything |
-| 2 | **Register the legal entity** | Longest genuinely external lead time | D-U-N-S |
-| 3 | **Choose the name and buy the domain** (see [doc 26](26-naming-candidates.md)) | The domain must exist, be live, and match the entity. It also becomes the bundle-ID prefix | website, email, D-U-N-S, bundle ID |
-| 4 | **Check the D-U-N-S you may already have** at Apple's lookup form before requesting a new one | Entities are often already in D&B's database; a duplicate request wastes a week | enrolment |
-| 5 | **Publish a real one-page website** on the domain | A placeholder page is an explicit rejection reason. One honest page — what the product is, contact, privacy policy — satisfies it, and we need the privacy-policy URL anyway | enrolment |
-| 6 | **Create `you@<yourdomain>`** | Required for enrolment | enrolment |
-
-Steps 3, 5 and 6 are same-day work. Step 2 is the pacing item.
-
-> ⚠️ **Why not the existing business?** Publishing a children's app under
-> Kicks-Stand / Stride Guide would tie an unrelated consumer brand's App Store
-> presence, tax reporting, subscription revenue and legal exposure to a footwear
-> retail venture — and would make the children's product hard to sell, licence or
-> spin out later. It also puts a children's-privacy compliance surface inside a
-> business that has nothing to do with it. Separate entity is right.
-
-## 3. Provisional identifiers — how development continues today
-
-Every Apple-issued identifier is behind one layer of indirection, so none of them
-appears as a literal anywhere in the codebase.
-
-| Identifier | Provisional value now | Where it lives | Cost to change later |
-| --- | --- | --- | --- |
-| Bundle ID | `dev.provisional.playhub` | `ios/Config/App.xcconfig` → `PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_ID)` | one line + regenerated profiles |
-| Android application ID | `dev.provisional.playhub` | `android/app/build.gradle` reading the same property | one line |
-| Apple Team ID | `PROVISIONAL` | `App.xcconfig` → `DEVELOPMENT_TEAM` | one line |
-| App display name | codename | `BrandConfig` + ARB `{appName}` | one line ([doc 20](20-expensive-decisions.md)) |
-| **Store product IDs** | none exist | `StoreProductCatalog`, a config map | see §4 |
-| Privacy-policy URL | placeholder | `BrandConfig` | one line |
-| App Store Connect app id | n/a | fastlane `Appfile`, read from env | one line |
-
-**Nothing in `lib/` contains a bundle ID, a team ID, a product ID, a price, or a
-brand name.** A test asserts it (`no_hardcoded_identifiers_test.dart`).
-
-### What development can and cannot do before enrolment
-
-| ✅ Proceeds now | ⛔ Waits for the account |
+| Domain | Status |
 | --- | --- |
-| Everything in Phases 0–5 | Signed device builds |
-| All unit, widget, golden and logic tests | TestFlight distribution |
-| Simulator builds and simulator integration tests | Real StoreKit sandbox purchases |
-| The entitlement system, driven by `FakeGateway` | App Store Connect product creation |
-| `.storekit` **local test configuration** — Xcode's local StoreKit testing needs no App Store Connect products at all, so the full purchase, restore, cancel, expire and refund flows are testable now | Push, Sign in with Apple, iCloud (none of which we use) |
-| CI on Linux: analyze, test, goldens, boundaries, budgets | The signed release lane (written, gated on secrets) |
+| `strideguide.co` | live (301) — but names no entity |
+| `kicksstand.com` | **taken** (resolves) |
+| `kicks-stand.com` | **taken** (registered, not serving) |
+| `kicksstand.co` | **no DNS — likely available** |
+| `kicksstandllc.com` | **no DNS — likely available** |
 
-The only thing genuinely gated is **distribution**, and that is not on the
-critical path until Phase 8.
+**Option A — free, same-day.** Add `Kicks-Stand LLC` and its business address to
+the Stride Guide footer, and an "About / Company" line naming the entity. This is
+usually enough for Apple, and it is one small edit to `index.html`.
 
-## 4. Store product IDs — deferred, and price-neutral
+**Option B — ~$12/year, recommended.** Register an entity domain (`kicksstand.co`
+or `kicksstandllc.com` appear free) and publish a genuine corporate one-pager:
+what the company is, its two products, contact details, privacy policy. This is
+the shape Apple expects for a multi-product holding entity, it keeps the entity's
+public identity independent of either product brand, and it gives you a stable
+home for legal pages that neither product's marketing site should carry.
 
-Apple's IAP product IDs are permanent and must be unique across the account, so
-they conventionally carry the bundle ID as a prefix — which we don't have yet.
-Rather than guess, the code refers to **product keys**, never store IDs:
+> ⚠️ Whichever you choose, the page must be **substantive**. Apple explicitly
+> rejects registrar placeholder pages, near-empty sites and social-media profiles.
 
-```dart
-enum ProductKey { premiumMonthly, premiumAnnual, premiumLifetime }
+### 3.3 Work email
 
-/// Keys → store identifiers. The ONLY place a store ID string exists.
-class StoreProductCatalog {
-  const StoreProductCatalog(this._ids);
-  final Map<ProductKey, String> _ids;
-  String idFor(ProductKey k) => _ids[k]!;
-}
+`pilots@strideguide.co` exists, so the mail infrastructure is there. You need a
+**personal-role address on the enrolment domain** — `derron@kicksstand.co` under
+Option B, or `derron@strideguide.co` under Option A. A gmail.com address will be
+rejected, and this is a step people hit at the very end.
+
+### 3.4 D-U-N-S
+
+- [ ] **Search before you request.** Apple hosts a D-U-N-S lookup; entities are
+      frequently already in D&B's database from a bank or a vendor. A duplicate
+      request wastes about a week.
+- [ ] Name **and** address must match INBiz exactly.
+- [ ] Allow ~5 business days; occasionally longer.
+
+## 4. The revised timeline — the long pole is gone
+
+My earlier plan budgeted 3–8 weeks because entity formation was the pacing item.
+**That step is already done**, which changes the picture materially:
+
+```
+Rename decision (this week, either way)
+        ↓
+Entity facts verified from INBiz              hours
+        ↓
+Website + email on an entity-associated domain  hours   ← can run in parallel
+        ↓
+D-U-N-S lookup, then request if needed         ~5 business days
+        ↓
+Apple enrolment + identity verification         days
+        ↓
+Paid Apps agreement, tax, banking               ~30 min
+        ↓
+Trader status declaration (DSA)                 ~15 min
 ```
 
-When the account exists, one config map is filled in with
-`<bundleId>.premium.monthly` and friends. No call site changes.
+**Realistic total: 1–2 weeks**, essentially all waiting rather than working. It
+now comfortably fits inside Phase 1, and it is no longer the schedule risk —
+**art commissioning is** ([doc 18](18-automation-vs-manual.md) §2.9).
 
-Pricing itself never enters the codebase at all — see [doc 08](08-entitlements-and-monetization.md) §3
-as revised: prices, trial lengths and territory availability are set in App Store
-Connect and **read from StoreKit at runtime**, so the paywall renders whatever the
-store says. There is no price constant to update, and a price change requires no
-app release.
+## 5. Separation despite common ownership
 
-## 5. The switch-over, when the account is ready
+You asked for complete separation at brand, repository, bundle-ID,
+infrastructure, secrets, analytics and product level. Here is exactly what is and
+is not shared, stated plainly rather than optimistically.
 
-A single documented changeover, scripted as `tools/apply_identity.dart`:
+| Layer | Shared with Stride Guide? | How it is kept apart |
+| --- | --- | --- |
+| Legal entity | ✅ **Yes — by design** | The only intentional overlap |
+| Apple Developer account / Team ID | ✅ Yes — unavoidable | One entity gets one Program membership. Today this is moot: Stride Guide/FitOS is a web product with no App Store presence, so the account is effectively this product's alone |
+| App Store Connect app record | ❌ No | Separate app, separate metadata, separate age rating, separate privacy answers |
+| Subscription products & group | ❌ No | Own group, own product IDs |
+| Bundle / application ID | ❌ No | Rooted in the **product's** domain, never `com.kicksstand.*` — §6 |
+| Repository | ❌ No | Own private repo ([doc 25](25-repository-migration-plan.md)) |
+| **Secrets** | ❌ No | **Repository-scoped GitHub secrets only — never organization-level secrets.** An org-level `ASC_KEY_P8` would be readable by any Stride Guide workflow. This is the single most important separation rule on this list |
+| App Store Connect API key | ❌ No | A dedicated key named for this product, used only by this repo's release lane. Revocable independently |
+| Signing certificates | ⚠️ Team-level by nature | Its own `fastlane match` certificate repository and passphrase; the underlying distribution certificate belongs to the team and cannot be split |
+| CI/CD | ❌ No | Own workflows, own runner minutes — this one needs paid macOS minutes and must not draw on Stride Guide's budget |
+| Analytics | ❌ No — and none exists | Zero SDKs; no shared pipeline to leak into |
+| Database / infrastructure | ❌ No | No backend at all in the MVP |
+| Brand | ❌ No | Nothing in the child- or parent-facing product references Kicks-Stand or Stride Guide, beyond the App Store seller line Apple controls |
+| Documentation | ❌ No | Own `docs/` |
 
-1. Fill `ios/Config/App.xcconfig` with the real bundle ID and Team ID
-2. Fill `BrandConfig` with the real app name, domain and policy URLs
-3. Fill the `StoreProductCatalog` map with the real product IDs
-4. Run `fastlane match` once to issue certificates
-5. Add `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `MATCH_PASSWORD` to GitHub secrets
+**The honest caveat:** one legal entity gets one Apple Developer Program
+membership and one Team ID, so certificates and the team are shared by
+construction. Everything above that line is separable and separated. If total
+Apple-level separation ever becomes necessary, §7 is the exit.
+
+## 6. Provisional identifiers — how development continues today
+
+Every Apple-issued identifier sits behind one layer of indirection, so none
+appears as a literal anywhere in the codebase. Enforced by
+`no_hardcoded_identifiers_test.dart`, which fails the build.
+
+| Identifier | Provisional value | Lives in | Cost to change |
+| --- | --- | --- | --- |
+| Bundle ID | `dev.provisional.playhub` | `ios/Config/App.xcconfig` | one line |
+| Android application ID | same | `android/app/build.gradle` | one line |
+| Apple Team ID | `PROVISIONAL` | `App.xcconfig` | one line |
+| App display name | codename | `BrandConfig` + ARB `{appName}` | one line |
+| Store product IDs | none exist | `StoreProductCatalog` | one map |
+| Privacy-policy URL | placeholder | `BrandConfig` | one line |
+
+**Two things gate the real bundle ID, and neither is the entity:**
+
+1. **Brand clearance.** Kite stays provisional until trademark clearance
+   completes ([doc 26](26-naming-candidates.md) §4).
+2. **A product domain.** The bundle ID follows the *product's* domain, not the
+   entity's — `co.kiteplay.app`, not `com.kicksstand.kite` — so the children's
+   product carries no trace of the footwear business at the identifier level, as
+   you asked.
+
+> ⚠️ **A bundle ID cannot be changed once a build has been uploaded**, and it
+> survives even an app transfer. Do not upload a build under a provisional or
+> entity-rooted identifier. The release lane already refuses to run while the
+> bundle ID contains `dev.provisional` — that guard exists for exactly this.
+
+### What proceeds now vs what waits
+
+| ✅ Proceeds today | ⛔ Waits for enrolment |
+| --- | --- |
+| Phases 0–5 in full | Signed device builds |
+| All unit, widget, golden and logic tests | TestFlight |
+| Simulator builds and integration tests | Real StoreKit sandbox |
+| The entitlement system via `FakeGateway` | Creating products in App Store Connect |
+| **Local StoreKit testing** — purchase, restore, cancel, expire and refund flows need no App Store Connect products at all | The signed release lane (written, gated) |
+
+Only **distribution** is gated, and that is not on the critical path until
+Phase 8.
+
+## 7. The exit, if this ever needs to change
+
+The main strategic argument for a separate entity is "what if I sell it, or it
+needs to stand alone?". Apple's **App Transfer** answers that, which is why I am
+comfortable recommending the shared entity:
+
+- The app moves to another developer account **keeping its reviews, ratings and
+  bundle ID**, and users keep receiving updates.
+- **Apps with auto-renewable subscriptions can be transferred** — the initiator
+  generates an app-specific shared secret and hands it to the recipient, who
+  regenerates it afterwards.
+- The recipient must accept within **60 days** and create new provisioning
+  profiles against the transferred App ID.
+
+So a future spin-out, sale or restructure costs a transfer and some paperwork —
+not a rebuild, and not a lost App Store listing. **That removes the only expensive
+reason to form a second entity today.**
+
+## 8. The switch-over, when enrolment completes
+
+Scripted as `tools/bin/apply_identity.dart`:
+
+1. Real bundle ID and Team ID into `ios/Config/App.xcconfig`
+2. Real app name, domain and policy URLs into `BrandConfig`
+3. Real product IDs into `StoreProductCatalog`
+4. `fastlane match` once, into this product's own certificate repository
+5. `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `MATCH_PASSWORD` as
+   **repository-scoped** GitHub secrets
 6. Un-gate the release lane
 
-Estimated effort when the day comes: **under an hour**, most of it waiting for
-Apple's servers.
+Under an hour, most of it waiting on Apple.
 
 ## Sources
 
 - [D-U-N-S Number — Apple Developer Account Help](https://developer.apple.com/help/account/membership/D-U-N-S)
 - [Enrollment — Apple Developer Account Help](https://developer.apple.com/help/account/membership/program-enrollment/)
 - [Identity verification](https://developer.apple.com/help/account/membership/identity-verification/)
-- [Become a member](https://developer.apple.com/programs/enroll/)
+- [Manage EU Digital Services Act trader requirements](https://developer.apple.com/help/app-store-connect/manage-compliance-information/manage-european-union-digital-services-act-trader-requirements/)
+- [Apps without trader status will be removed from the App Store in the EU](https://developer.apple.com/news/?id=einwn76m)
+- [Overview of app transfer](https://developer.apple.com/help/app-store-connect/transfer-an-app/overview-of-app-transfer/)
+- [Accept an app transfer](https://developer.apple.com/help/app-store-connect/transfer-an-app/accept-an-app-transfer/)

@@ -11,9 +11,17 @@ Decisions the owner has made, in the order they were settled. Supersedes the
 | --- | --- | --- | --- |
 | D1 | **Flutter + Flame** | Flutter is the application framework; Flame is used **selectively**, only where a game loop earns its place. Do not force Flame into screens where plain Flutter is better. Keep the platform↔module boundary clean so a future game needing heavier rendering is not architecturally trapped | [01](01-tech-stack-decision.md), **[23](23-flame-usage-policy.md)** |
 | D2 | **Pricing deferred** | Price-neutral product IDs and entitlement architecture. No price hard-coded anywhere. Hypothesis remains an inexpensive subscription with monthly + annual and possibly lifetime, to be validated later. Pricing is configuration and business logic, not architecture | [08 §3](08-entitlements-and-monetization.md) |
-| D3 | **Apple Organization account intended** | The app is to be owned by a business entity, and explicitly **not** by the existing Stride Guide / Kicks-Stand business. Development proceeds on provisional identifiers; nothing waits on enrolment until distribution | **[24](24-apple-account-and-identifiers.md)** |
+| D3 | **Apple Organization account intended** | The app is to be owned by a business entity. Development proceeds on provisional identifiers; nothing waits on enrolment until distribution | **[24](24-apple-account-and-identifiers.md)** |
 | D4 | **Separate repository, immediately** | Independent repo, secrets, environment config, CI/CD, bundle IDs, signing, analytics config, subscription config, App Store config and documentation. Do not destabilise Stride Guide. History preservation is secondary to clean separation. **Show the migration plan before any destructive operation** | **[25](25-repository-migration-plan.md)** |
 | D5 | **Name the product** | Ten candidates required; do not anchor on "PlayHub" | **[26](26-naming-candidates.md)** |
+
+## Settled — 26 Aug 2026
+
+| # | Decision | Detail | Docs affected |
+| --- | --- | --- | --- |
+| D6 | **Kicks-Stand LLC is the publisher** | The existing Indiana LLC owns and publishes this product. **No new entity.** Supersedes my earlier recommendation — I found no material legal, tax, Apple, liability or branding reason to form one, and App Transfer covers a future spin-out | **[24](24-apple-account-and-identifiers.md)** |
+| D7 | **Complete separation despite common ownership** | Brand, repository, bundle ID, infrastructure, **repo-scoped secrets**, analytics and product stay separate. The legal entity and the Apple Team ID are the only shared layers, and the Team ID is shared by construction | [24 §5](24-apple-account-and-identifiers.md), [25](25-repository-migration-plan.md) |
+| D8 | **Kite stays provisional** | The brand is not committed until trademark clearance completes. The bundle ID waits on it too, since a bundle ID cannot change after the first build upload | [26](26-naming-candidates.md) |
 
 ## Assumed defaults — say the word to change any of them
 
@@ -35,5 +43,7 @@ Decisions the owner has made, in the order they were settled. Supersedes the
 | --- | --- | --- | --- |
 | Q1 | **Approve the repository migration plan?** | Steps A–E in [doc 25](25-repository-migration-plan.md). Phase 0 continues meanwhile | Approve after the Phase 0 scaffold lands, so the new repo's first commit is a green, tested project |
 | Q2 | **Which name?** | The domain, which blocks Apple enrolment, which blocks distribution | **Kite**, alternate **Lantern**, safe harbour **Playgrove** ([doc 26](26-naming-candidates.md)) |
-| Q3 | **Entity jurisdiction and structure** | D-U-N-S → Apple enrolment → all distribution. Longest external lead time in the project | Start today; it is 3–8 weeks of sequential waiting ([doc 24 §1](24-apple-account-and-identifiers.md)) |
+| Q3 | **Rename Kicks-Stand LLC, or keep the name?** | D-U-N-S must match the exact legal name, so renaming *after* it is issued costs weeks of re-verification | Decide either way this week. Keeping it is fine — just know the App Store seller line will read "Kicks-Stand LLC" ([doc 24 §1](24-apple-account-and-identifiers.md)) |
+| Q5 | **Entity website: patch strideguide.co, or register an entity domain?** | Apple enrolment — the current site names no legal entity at all | Option B: register `kicksstand.co` or `kicksstandllc.com` (both appear free) and publish a real corporate one-pager ([doc 24 §3.2](24-apple-account-and-identifiers.md)) |
+| Q6 | **Is the LLC's address of record your home?** | It becomes the **publicly published** EU DSA trader address on the App Store product page | Move to a registered-agent or commercial address before enrolling ([doc 24 §1](24-apple-account-and-identifiers.md)) |
 | Q4 | Which GitHub owner/org holds the new repo | Migration step A | Personal account now, transfer to the entity's org once it exists |

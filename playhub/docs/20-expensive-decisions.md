@@ -9,9 +9,9 @@
 
 | # | Decision | Why it's expensive | Recommendation | Locked by |
 | --- | --- | --- | --- | --- |
-| 1 | **Bundle ID** | Permanent. Changing it means a new App Store listing, losing all reviews, ratings, ranking history and existing subscribers | `com.<yourdomain>.playhub` — brand-neutral, so a rebrand costs nothing | Phase 0 |
+| 1 | **Bundle ID** | **Cannot change once a build has been uploaded** — it even survives an app transfer. Getting it wrong means a new App Store listing and the loss of all reviews, ratings and ranking history | Root it in the **product's** domain, never the entity's: `co.<brand>.app`, not `com.kicksstand.*`. Blocked on brand clearance, not on enrolment | before first upload |
 | 2 | **IAP product IDs** | Permanent in App Store Connect. Cannot be renamed or reused | `premium.monthly`, `premium.annual`. No brand, no price, no year in the string | Phase 0 |
-| 3 | **App Store Connect account type** (Individual vs Organization) | Moving an app between accounts is a manual Apple process that can take weeks and sometimes isn't granted | Decide now. If you might ever raise money, sell, or hire — Organization, and start the D-U-N-S process today | Phase 0 |
+| 3 | **The legal entity's name at D-U-N-S time** | A D-U-N-S must match the exact registered name. Renaming the LLC afterwards means re-registering and re-verifying with Apple — weeks | **Settled: Kicks-Stand LLC publishes.** The open question is only whether to rename it first ([doc 24 §1](24-apple-account-and-identifiers.md)) | before D-U-N-S |
 | 4 | **Kids Category + age band** | Changeable, but the band drives every content and UX decision, and leaving the Kids Category after launch reads as a downgrade to parents | "5 and under" (doc 14 §1) | Phase 0 |
 | 5 | **Collecting no data** | You can start collecting later, but the "Data Not Collected" label and the trust it buys can only be spent once. Adding an SDK later is a visible privacy-label change parents can see | Stay at zero for the MVP | Phase 0 |
 
@@ -55,10 +55,15 @@ Because the name is temporary, the codebase treats the brand as **configuration*
 same, plus a store-listing update. That is the correct answer to your requirement
 and it costs nothing to maintain.
 
-## The three questions to settle this week
+## The questions still open
 
-1. **Individual or Organization** Apple account? (Blocks the bundle ID, which
-   blocks everything.)
-2. **What domain do you own** for the reverse-DNS bundle ID?
-3. **Flutter, or do you want Unity anyway?** (Doc 01 §6 lists the three reasons
-   I'd change my mind.)
+1. **Rename Kicks-Stand LLC, or keep the name?** Decide before requesting a
+   D-U-N-S — after is expensive ([doc 24 §1](24-apple-account-and-identifiers.md)).
+2. **Which domain carries the entity's website** for Apple enrolment —
+   strideguide.co patched to name the LLC, or a new entity domain?
+3. **Which brand**, so the product domain and bundle ID can be settled
+   ([doc 26](26-naming-candidates.md))?
+
+Settled since: the stack ([doc 01](01-tech-stack-decision.md)), pricing deferral
+([doc 08](08-entitlements-and-monetization.md)), and the publisher
+([doc 24](24-apple-account-and-identifiers.md)).

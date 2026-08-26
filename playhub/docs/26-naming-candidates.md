@@ -112,11 +112,18 @@ trademark. The modern answer is a modified domain — `heykite.com`, `kite.famil
 `playkite.com`, `getlantern.app` — which is what most consumer brands launched in
 the last decade actually use.
 
-But note ([doc 24](24-apple-account-and-identifiers.md)): Apple requires a **live,
-substantive website on a domain associated with the legal entity**, and your work
-email must be on that domain. So the domain decision is a *blocking dependency for
-Apple enrolment*, not a marketing detail — which is why this document exists in
-Phase 0 rather than Phase 8.
+**Two different domains, two different jobs** — worth separating clearly, because
+it changes what blocks what ([doc 24](24-apple-account-and-identifiers.md)):
+
+| Domain | Job | Blocks |
+| --- | --- | --- |
+| An **entity** domain (a Kicks-Stand one, or strideguide.co patched to name the LLC) | Apple enrolment: a live, substantive site on a domain associated with the legal entity, plus your work email on it | Enrolment → distribution |
+| The **product** domain (`kite…`) | The app's marketing site, privacy policy, and the reverse-DNS **bundle ID** | The first build upload |
+
+So the brand decision **no longer blocks Apple enrolment** — the entity domain
+handles that. It blocks the bundle ID, and a bundle ID **cannot be changed once a
+build has been uploaded**. That is the real deadline: decide the brand before the
+first upload, which lands in Phase 8.
 
 ## 4. Before you commit — please do these three things
 
@@ -135,6 +142,11 @@ I have not done any of them and cannot responsibly claim a name is clear:
 
 **Kite**, with **Lantern** as the alternate and **Playgrove** as the safe harbour
 if clearance on both fails.
+
+> **Kite is provisional until clearance completes.** Nothing in the codebase
+> assumes it: the codename stays `playhub`, the bundle ID stays
+> `dev.provisional.playhub`, and the release lane refuses to upload while it does.
+> A test fails the build if a brand literal appears outside `BrandConfig`.
 
 Kite wins on the criterion that is hardest to fix later: it is a name the product
 can grow into rather than out of. A ten-year-old is not embarrassed to have Kite
