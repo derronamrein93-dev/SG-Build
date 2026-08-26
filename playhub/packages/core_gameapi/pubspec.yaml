@@ -1,0 +1,23 @@
+name: core_gameapi
+description: >-
+  The plug-in contract every game implements. Deliberately tiny, versioned, and
+  aware of nothing below it — no database, no network, no navigation.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  core_foundation: ^0.1.0
+  core_theme: ^0.1.0
+  flutter:
+    sdk: flutter
+  # `flutter_test` is a real dependency, not a dev dependency: lib/testing.dart
+  # ships the reusable contract suite that every game package imports.
+  flutter_test:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0

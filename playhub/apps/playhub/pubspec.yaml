@@ -1,0 +1,24 @@
+name: playhub
+description: >-
+  Composition root. Wires packages together and owns the two route trees.
+  Contains almost no logic by design.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  core_entitlements: ^0.1.0
+  core_foundation: ^0.1.0
+  core_gameapi: ^0.1.0
+  core_persistence: ^0.1.0
+  core_theme: ^0.1.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter

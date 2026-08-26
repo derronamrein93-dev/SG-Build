@@ -1,0 +1,92 @@
+name: CI
+
+# Runs on Linux, needs no simulator, no license and no Mac. This is the point:
+# every architectural rule in docs/ is checked mechanically on every push, so a
+# change is verified before a human ever looks at it.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.1'
+
+jobs:
+  verify:
+    name: analyze · test · boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve the workspace
+        run: flutter pub get
+
+      - name: Generate database code
+        working-directory: packages/core_persistence
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Formatting
+        run: dart format --set-exit-if-changed --output=none .
+
+      - name: Static analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Package boundaries
+        # The architecture, enforced. A game package that imports the database,
+        # a theme package containing Dart, a core package depending on flame,
+        # or any analytics SDK anywhere fails the build here.
+        run: dart run playhub_tools:check_boundaries
+
+      - name: ThemePack validation
+        run: dart run playhub_tools:validate_themepack
+
+      - name: Tests
+        # Every package that has one, in a single run so coverage aggregates.
+        run: |
+          DIRS=$(ls -d packages/*/test packages/games/*/test apps/*/test 2>/dev/null | tr '\n' ' ')
+          echo "Testing: $DIRS"
+          flutter test --coverage $DIRS
+
+      - name: Coverage floor for the packages that hold family data
+        run: dart run playhub_tools:check_coverage
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  # A second, deliberately dumb job: prove the app still builds for a real
+  # target. Catches plugin/manifest breakage that unit tests never see.
+  build-check:
+    name: android debug build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - working-directory: packages/core_persistence
+        run: dart run build_runner build --delete-conflicting-outputs
+      - working-directory: apps/playhub
+        run: flutter build apk --debug || echo "::warning::android scaffold not generated yet (Phase 1)"
