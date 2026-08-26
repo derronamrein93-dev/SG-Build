@@ -1,0 +1,16 @@
+// Identity, kept out of the Xcode project file so changing it is a one-line
+// diff rather than project surgery. See docs/24-apple-account-and-identifiers.md.
+//
+// PROVISIONAL until the Apple Organization account exists. Development,
+// simulator builds, local StoreKit testing and CI all work with these values;
+// only signed distribution does not.
+
+APP_BUNDLE_ID = dev.provisional.playhub
+APP_TEAM_ID =
+APP_DISPLAY_NAME = Playhub
+
+PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_ID)
+DEVELOPMENT_TEAM = $(APP_TEAM_ID)
+
+// No push, no iCloud, no Sign in with Apple, no Family Controls. The app needs
+// no capabilities at all, which is itself a compliance asset.

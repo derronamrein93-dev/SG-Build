@@ -98,15 +98,23 @@ and is explained in [13 — Privacy](13-privacy-and-child-safety.md). Apple alre
 gives you crash reports, installs, retention and subscription conversion for free,
 with no SDK and no privacy-label consequences.
 
-## 5. What happens next
+## 5. Where this stands
 
-I need answers to nine questions in [22 — Open Decisions](22-open-decisions.md).
-Three of them are genuinely blocking (engine, price point, Kids Category age
-band); the rest have defaults I'll assume if you don't care.
+The stack, the pricing posture, the Apple account model and the repository split
+are settled — see the [Decision Log](22-decision-log.md). Phase 0 is built:
+six packages, 91 tests, zero analyzer issues, and the architecture's claims
+turned into checks that fail the build ([27 — Phase 0 Status](27-phase-0-status.md)).
 
-On approval, Phase 0 is fully automatable and produces: the extracted repository,
-the Flutter workspace, all package skeletons, CI that runs tests on every push,
-the placeholder-art generator, the ThemePack validator, and a build pipeline that
-turns a `git push` into a TestFlight build. Your part of Phase 0 is roughly two
-hours in App Store Connect, scripted step by step in
+Three things now wait on you:
+
+1. **Approve the repository extraction** — the exact commands are in
+   [25 — Repository Migration Plan](25-repository-migration-plan.md). Nothing
+   destructive runs until you say so.
+2. **Pick a name** — [26 — Name Candidates](26-naming-candidates.md). It gates
+   the domain, which gates Apple enrolment, which gates distribution.
+3. **Start the legal entity and D-U-N-S** — the longest lead time in the whole
+   project, and pure paperwork ([24 — Apple Account](24-apple-account-and-identifiers.md)).
+
+Your part of Phase 0 is roughly two hours in App Store Connect once the account
+exists, scripted step by step in
 [18 — Automation vs Manual](18-automation-vs-manual.md).

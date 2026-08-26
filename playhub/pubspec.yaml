@@ -1,0 +1,17 @@
+name: playhub_workspace
+description: >-
+  Modular mobile entertainment platform for children. Internal codename only —
+  the brand lives in apps/playhub/lib/brand/brand_config.dart.
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+workspace:
+  - apps/playhub
+  - packages/core_foundation
+  - packages/core_theme
+  - packages/core_gameapi
+  - packages/core_persistence
+  - packages/core_entitlements
+  - tools

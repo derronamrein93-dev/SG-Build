@@ -56,21 +56,23 @@ playhub/                                  ← extract to its own repo before Pha
 │     ├─ theme_dino/
 │     └─ theme_ocean/
 │
-├─ tools/                                 Dart CLI scripts, all runnable in CI
-│  ├─ check_boundaries.dart               fails CI on an illegal import
-│  ├─ validate_themepack.dart             every required slot present & valid
-│  ├─ gen_placeholder_art.dart            procedural stand-in art for every slot
-│  ├─ new_game.dart                       scaffolds a game package + tests
-│  ├─ new_theme.dart                      scaffolds a ThemePack + manifest
-│  ├─ rebrand.dart                        renames product strings & bundle IDs
-│  ├─ size_report.dart                    per-package & per-pack byte budgets
-│  └─ audio_optimize.dart                 normalises + encodes audio to Opus/AAC
+├─ tools/                                 its own package; all runnable in CI
+│  └─ bin/
+│     ├─ check_boundaries.dart            ✅ fails CI on an illegal import
+│     ├─ validate_themepack.dart          ✅ slot coverage, no Dart, size budget
+│     ├─ check_coverage.dart              ✅ coverage floors where data lives
+│     ├─ gen_placeholder_art.dart         Phase 2
+│     ├─ new_game.dart / new_theme.dart   Phase 2
+│     ├─ apply_identity.dart              when the Apple account exists (doc 24)
+│     ├─ rebrand.dart                     when a name is chosen (doc 26)
+│     └─ size_report.dart                 Phase 7
 │
 ├─ fastlane/                              TestFlight + App Store lanes
 ├─ .github/workflows/
-│  ├─ ci.yaml                             Linux: analyze, test, goldens, boundaries,
-│  │                                      themepack validation, size budgets
-│  └─ release.yaml                        macOS: build, sign, upload to TestFlight
+│  ├─ ci.yaml                             ✅ Linux: format, analyze --fatal-infos,
+│  │                                      boundaries, themepacks, tests, coverage
+│  └─ release.yaml                        ✅ written, gated: refuses to run on the
+│                                         provisional bundle ID (doc 24)
 └─ docs/                                  these documents + ADR header blocks
 ```
 
@@ -84,9 +86,12 @@ playhub/                                  ← extract to its own repo before Pha
 3. **A theme package contains no `.dart` file at all.** Checked mechanically.
    Themes are content; the moment a theme needs code, the slot vocabulary is wrong
    and should be extended instead.
-4. **No file over ~400 lines**, no `utils.dart`, no `helpers.dart`. Enforced by
+4. **Generated files are not committed.** `*.g.dart` is ignored; CI runs
+   `build_runner` before analysing. A generated file in a diff hides the change
+   that matters.
+5. **No file over ~400 lines**, no `utils.dart`, no `helpers.dart`. Enforced by
    review, warned by a lint.
-5. **Every package has a `test/` directory** and its own README stating the one
+6. **Every package has a `test/` directory** and its own README stating the one
    thing it owns.
 
 ## 3. Adding a game — the whole procedure

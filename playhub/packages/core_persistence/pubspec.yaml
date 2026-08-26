@@ -1,0 +1,21 @@
+name: core_persistence
+description: >-
+  SQLite (WAL) via Drift. Schema, migrations, DAOs. The only package that knows
+  what a table is.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  core_foundation: ^0.1.0
+  drift: ^2.28.0
+
+dev_dependencies:
+  build_runner: ^2.4.13
+  drift_dev: ^2.28.0
+  flutter_lints: ^6.0.0
+  sqlite3: ^2.4.0
+  test: ^1.25.0

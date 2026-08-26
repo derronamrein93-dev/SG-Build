@@ -1,0 +1,17 @@
+name: core_entitlements
+description: >-
+  Feature entitlements and the purchase gateway abstraction. Contains no prices
+  and no store product identifiers — both are configuration.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  core_foundation: ^0.1.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  test: ^1.25.0

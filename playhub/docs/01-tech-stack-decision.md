@@ -131,8 +131,10 @@ I will change this recommendation if any of these become true:
 3. **You license a third-party content SDK that is Unity-only** — some kids'
    character/IP licensors ship Unity packages exclusively.
 
-None of these appear in your brief. If one is actually true, say so in
-[22 — Open Decisions](22-open-decisions.md) and I will re-plan before Phase 0.
+None of these appeared in the brief, and the decision is now settled in favour
+of Flutter + Flame — with Flame used **selectively**, only where a game loop
+earns its place ([23 — Flame Usage Policy](23-flame-usage-policy.md)). If one of
+the three ever becomes true, the insurance in §7 below is what limits the damage.
 
 ## 7. Insurance against being wrong
 

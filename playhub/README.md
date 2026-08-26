@@ -2,7 +2,7 @@
 
 **Codename:** `playhub` (internal only — never the brand; see [20 — Expensive decisions](docs/20-expensive-decisions.md))
 **Product:** a modular mobile entertainment platform for children ages 2–8
-**Status:** 🟡 **Architecture proposed — awaiting owner approval. No implementation started.**
+**Status:** 🟢 **Architecture approved. Phase 0 in progress.** Repository extraction is planned and awaiting sign-off ([doc 25](docs/25-repository-migration-plan.md)).
 
 > **The promise:** a parent unlocks their phone, opens this app, hands it to their
 > child, and walks away for 15 minutes without worrying.
@@ -55,7 +55,25 @@ a repo scoped to a different product), separate issue tracker, and a clean
 | 19 | [Size & Performance Targets](docs/19-size-and-performance-targets.md) | Hard numbers CI will enforce |
 | 20 | [Expensive Decisions](docs/20-expensive-decisions.md) | The twelve things that are costly to undo |
 | 21 | [Critical Review](docs/21-critical-review.md) | Where I think your brief is wrong |
-| 22 | [Open Decisions](docs/22-open-decisions.md) | **The nine answers I need from you** |
+| 22 | [Decision Log](docs/22-decision-log.md) | **What's settled, what's assumed, what's still open** |
+| 23 | [Flame Usage Policy](docs/23-flame-usage-policy.md) | Where a game loop earns its place, and where it doesn't |
+| 24 | [Apple Account & Identifiers](docs/24-apple-account-and-identifiers.md) | Organization enrolment, D-U-N-S, and the provisional IDs we build on today |
+| 25 | [Repository Migration Plan](docs/25-repository-migration-plan.md) | ⏸ Exact extraction steps — awaiting approval |
+| 26 | [Name Candidates](docs/26-naming-candidates.md) | Ten options, honestly assessed |
+| 27 | [Phase 0 Status](docs/27-phase-0-status.md) | **What is built, compiled and tested right now** |
+
+## Running it
+
+```bash
+flutter pub get
+(cd packages/core_persistence && dart run build_runner build --delete-conflicting-outputs)
+flutter analyze --fatal-infos
+dart run playhub_tools:check_boundaries
+flutter test --coverage $(ls -d packages/*/test apps/*/test)
+```
+
+Verified on Flutter 3.47.1 / Dart 3.13.1: **91 tests, 0 analyzer issues.**
+See [doc 27](docs/27-phase-0-status.md).
 
 ## The one-paragraph version
 

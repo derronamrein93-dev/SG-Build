@@ -55,21 +55,76 @@ last known-good entitlement rather than downgrading. The downside of an
 occasional wrongly-granted month is trivial; the downside of a paying parent
 being locked out at a restaurant is a refund and a one-star review.
 
-## 3. Products
+## 3. Products — price-neutral by construction
 
-| Product | Type | Recommended price | Notes |
-| --- | --- | --- | --- |
-| `premium.monthly` | auto-renewing, group `playhub_premium` | **$4.99** | 7-day free trial |
-| `premium.annual` | auto-renewing, same group | **$29.99** (50% off) | The default choice; pre-selected |
-| `premium.lifetime` | non-consumable | **defer — see §5** | |
+> **Decision (approved):** pricing is **deferred**. It is configuration and
+> business logic, never application architecture. No price, trial length, or
+> currency appears anywhere in `lib/`, and a lint test enforces that.
 
-- **Family Sharing: ON** for both subscriptions. Parents share devices and
-  households; this measurably reduces refunds and support contacts.
-- Both in one subscription group so upgrade/downgrade/proration is Apple's problem.
-- Product IDs are **immutable forever** in App Store Connect. They are chosen
-  brand-neutrally so a rebrand doesn't strand them.
-- Introductory offer: free trial, not a discounted period — parents evaluate a
-  kids' app in one weekend, not one month.
+### How prices stay out of the codebase
+
+The paywall renders **whatever StoreKit reports**, in the user's own currency and
+locale, fetched at display time:
+
+```dart
+final products = await gateway.query(catalog.allIds());
+// products.first.price        -> "$4.99"  — a localized string FROM the store
+// products.first.introOffer   -> the trial, if any, as configured in App Store Connect
+```
+
+Consequences, all of which are the point:
+
+- A price change is an App Store Connect edit. **No app release, no review.**
+- Regional pricing, price experiments and promotional offers all work with zero
+  code involvement.
+- No `const monthlyPrice = 1.99` can ever drift out of sync with the store.
+- If a product fails to load, the paywall shows the tier's *benefits* and a retry —
+  it never guesses a price or shows a hard-coded one.
+
+### Product keys, not store identifiers
+
+Store product IDs are permanent and conventionally carry the bundle ID, which we
+don't have yet ([doc 24](24-apple-account-and-identifiers.md)). So code refers to
+keys:
+
+```dart
+enum ProductKey { premiumMonthly, premiumAnnual, premiumLifetime }
+```
+
+`StoreProductCatalog` maps keys → store IDs in one config object. Today it is
+empty and `FakeGateway` drives every test. When the Apple account exists, one map
+is filled in and no call site changes.
+
+`premiumLifetime` exists in the enum from day one so the *entitlement resolution*
+path is built and tested for a non-consumable, even though no such product is
+planned for launch. Adding it later is then a store-side decision, not an
+engineering project.
+
+### Shape of the offering (to validate, not to build against)
+
+| Product | Type | Notes |
+| --- | --- | --- |
+| `premiumMonthly` | auto-renewing, group `premium` | |
+| `premiumAnnual` | auto-renewing, same group | expected default choice |
+| `premiumLifetime` | non-consumable | architecture only; ship if validated |
+
+Structural decisions that *are* architecture, and are settled now:
+
+- **One subscription group**, so upgrade/downgrade/proration is Apple's problem.
+- **Family Sharing ON** for the subscriptions — parents share households, and this
+  measurably reduces refunds and support contacts.
+- **An introductory free trial** is assumed to exist and the UI handles its
+  presence or absence; its length is a store setting.
+- **Product IDs are brand- and price-neutral strings**, so neither a rebrand nor a
+  price change strands them.
+
+### The pricing conversation, deferred not closed
+
+Your working hypothesis is an extremely inexpensive subscription. My argument
+against pricing that low is in §5 below and I still hold it — but nothing in the
+codebase depends on the answer, so it is genuinely safe to decide with real data
+during Phase 6, or after launch via App Store price experiments. That is the whole
+reason for building it this way.
 
 ## 4. The free/premium line
 
@@ -96,9 +151,12 @@ Two deliberate positions:
    their child's screen time is the kind of decision that ends up in an article
    about predatory kids' apps, and it directly contradicts the product promise.
 
-## 5. Pricing critique (this is the part I most want you to reconsider)
+## 5. Pricing critique — for the Phase 6 decision, not for the code
 
-Your hypothesis is $0.99–$1.99/month. I think that is a mistake, for four reasons:
+Pricing is deferred and the architecture is neutral, so this section is an
+argument to revisit later, not a blocker now. Your hypothesis is an extremely
+inexpensive subscription in the $0.99–$1.99 range. I think that would be a
+mistake, for four reasons:
 
 1. **It's below the category.** Paid children's app subscriptions generally sit
    in the mid-single to low-double digits per month; $1.49 sits an order of
@@ -114,18 +172,19 @@ Your hypothesis is $0.99–$1.99/month. I think that is a mistake, for four reas
 4. **You can lower a price. You cannot raise one** on existing subscribers
    without a consent flow that many will decline.
 
-**Recommendation: $4.99/month, $29.99/year, 7-day free trial, annual as the
-default selection.** Run a price test after 90 days with the App Store's price
-experiment tooling. That is still cheaper than almost everything in the category
-while producing ~4× the revenue per subscriber.
+**When the decision comes due, my recommendation is roughly $4.99/month with an
+annual at ~50% off and a 7-day trial** — still cheaper than most of the category,
+while producing several times the revenue per subscriber. Validate it with an
+App Store price experiment rather than a guess; that tooling exists precisely for
+this, and the architecture lets you use it without shipping a build.
 
 **On lifetime:** I recommend **not** launching with it. A lifetime purchase caps
 your best customers' LTV at roughly two years of annual, while committing you to
 serve them content forever — the worst trade in a content business. If you want
 it as a launch conversion lever, price it at **≥ $79.99** and describe it honestly
 as unlocking everything currently released plus future releases while the app is
-supported. Keep the architecture for it (`ContentTier.lifetime` already resolves
-to the same `Feature` set), so adding it later is a product-ID change, not code.
+supported. The architecture already carries it (`ProductKey.premiumLifetime` resolves to the
+same `Feature` set), so adding it later is a store-side change, not code.
 
 ## 6. Absolute rules for the child-facing surface
 

@@ -54,14 +54,15 @@
 | Package | May depend on | May **never** depend on |
 | --- | --- | --- |
 | `core_foundation` | nothing | everything |
-| `core_gameapi` | `core_foundation` | persistence, domain, UI, app |
-| `packages/games/*` | `core_gameapi`, `core_ui_kit`, `flame` | persistence, domain, entitlements, router, `http` |
+| `core_gameapi` | `core_foundation`, `core_theme`, `flutter` (for `Widget`) | persistence, domain, entitlements, app, `flame`, `http` |
+| `packages/games/*` | `core_gameapi`, `core_ui_kit`, and `flame` **only if the game needs a loop** (doc 23) | persistence, domain, entitlements, router, `http`, storage, `url_launcher` |
 | `packages/themes/*` | *nothing — contains no Dart* | — |
 | `core_domain` | foundation, persistence, theme | any widget library, any game |
 | `apps/playhub` | everything | — |
 
-`tools/check_boundaries.dart` parses every `pubspec.yaml` plus every `import` and
-fails CI on a violation. This is the single most important piece of tooling in the
+`tools/bin/check_boundaries.dart` parses every `pubspec.yaml` plus every
+`import` and fails CI on a violation. It is implemented and green — and
+verified to actually fail: injecting `drift` into `core_theme` exits 1. This is the single most important piece of tooling in the
 repo: it is what keeps "modular platform" true in month 18 rather than only in
 month 1.
 
