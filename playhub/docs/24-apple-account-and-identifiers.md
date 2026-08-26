@@ -40,24 +40,23 @@ Two consequences:
    registered-agent or commercial mail address instead. This is worth fixing
    before enrolment, not after.
 
-**⏱ If you are going to rename the LLC, decide now — not later.** Indiana permits
-a name amendment, and if Kicks-Stand LLC is now the holding entity for two
-unrelated products, a neutral name serves both better than a footwear name does.
-I am **not** recommending you rename; I am flagging that the decision has a hard
-deadline you can't see from here:
+**⏱ The rename window has effectively closed — and that is fine.** I flagged
+that a D-U-N-S must be registered to the exact legal name, so renaming afterwards
+means re-registering with D&B and re-verifying with Apple. The D-U-N-S now
+exists, so **Kicks-Stand LLC is the name that goes to Apple**, and the App Store
+seller line will read that way.
 
-> **A D-U-N-S Number must be registered to the exact legal entity name.** Rename
-> the LLC *after* you obtain a D-U-N-S and you must re-register it and re-verify
-> with Apple — weeks lost. Rename *before*, and it costs one Indiana filing.
-
-So: settle the name question this week, either way, then start the D-U-N-S.
+Renaming remains *possible* — it is an Indiana amendment plus a D&B record
+update plus, if enrolment has already happened, an account name change with
+Apple. It is now a multi-week detour rather than a one-week decision. Unless the
+seller line genuinely bothers you, take the name as settled and move on.
 
 ## 2. What Apple requires, and where Kicks-Stand LLC stands
 
 | Requirement | Status | Action |
 | --- | --- | --- |
 | A legal entity (not a DBA/trade name/branch) | ✅ **Satisfied** | none |
-| D-U-N-S registered to that exact entity | ❓ **Verify** | §3.1 |
+| D-U-N-S registered to that exact entity | ✅ **Obtained** — verify the record's name and address | §3.4 |
 | Public, functional website on a domain **associated with the organization** | ⚠️ **Gap** | §3.2 |
 | Work email on that domain | ⚠️ **Partial** | §3.3 |
 | Enroller has authority to bind the entity | ✅ Presumed (you are the owner) | confirm you are listed as member/manager |
@@ -127,13 +126,33 @@ home for legal pages that neither product's marketing site should carry.
 Option B, or `derron@strideguide.co` under Option A. A gmail.com address will be
 rejected, and this is a step people hit at the very end.
 
-### 3.4 D-U-N-S
+### 3.4 D-U-N-S — ✅ **obtained**
 
-- [ ] **Search before you request.** Apple hosts a D-U-N-S lookup; entities are
-      frequently already in D&B's database from a bank or a vendor. A duplicate
-      request wastes about a week.
-- [ ] Name **and** address must match INBiz exactly.
-- [ ] Allow ~5 business days; occasionally longer.
+Kicks-Stand LLC has a D-U-N-S Number on file. It is a well-formed nine-digit
+identifier and the ~5-business-day wait is behind us.
+
+> **Where the number lives:** deliberately **not in this repository**, which is
+> public. A D-U-N-S is not confidential — it is designed to be handed to vendors
+> and appears in public registries — but there is no benefit to publishing it
+> next to the entity's address. Keep it in your password manager, and record it
+> in the extracted **private** repository ([doc 25](25-repository-migration-plan.md))
+> if you want it in-project at all.
+
+What remains is not obtaining it but **verifying the record behind it**. Apple
+uses the D&B record to confirm your identity and legal status, so a stale record
+fails enrolment even though the number is valid:
+
+- [ ] **Legal name on the D&B record matches INBiz character-for-character.**
+      A record created years ago by a bank may carry a slightly different string.
+- [ ] **Address on the D&B record matches** the entity's current address of
+      record. A D-U-N-S issued at formation often still carries the formation
+      address.
+- [ ] **The address is not your home** — it becomes the publicly published EU DSA
+      trader address (§1).
+- [ ] Entity status and trade style look right.
+
+Corrections go through D&B, not Apple, and take a few days — so check the record
+**before** starting enrolment rather than discovering a mismatch inside it.
 
 ## 4. The revised timeline — the long pole is gone
 
@@ -141,24 +160,32 @@ My earlier plan budgeted 3–8 weeks because entity formation was the pacing ite
 **That step is already done**, which changes the picture materially:
 
 ```
-Rename decision (this week, either way)
+✅ Legal entity exists                          done
+✅ D-U-N-S obtained                             done
         ↓
-Entity facts verified from INBiz              hours
+Verify the D&B record matches INBiz            ~1 h, + a few days if it needs correcting
         ↓
-Website + email on an entity-associated domain  hours   ← can run in parallel
+Entity facts verified from INBiz               hours
         ↓
-D-U-N-S lookup, then request if needed         ~5 business days
+Website + email on an entity-associated domain hours   ← the remaining real work
         ↓
-Apple enrolment + identity verification         days
+Apple enrolment + identity verification        days
         ↓
-Paid Apps agreement, tax, banking               ~30 min
+Paid Apps agreement, tax, banking              ~30 min
         ↓
-Trader status declaration (DSA)                 ~15 min
+Trader status declaration (DSA)                ~15 min
 ```
 
-**Realistic total: 1–2 weeks**, essentially all waiting rather than working. It
-now comfortably fits inside Phase 1, and it is no longer the schedule risk —
-**art commissioning is** ([doc 18](18-automation-vs-manual.md) §2.9).
+**Realistic total: a few days to a week**, and the only genuine work left is
+publishing a page that names the LLC and creating an email address on that
+domain. Both are an afternoon.
+
+For perspective on how far this has moved: the first version of this plan
+budgeted **3–8 weeks** and called entity formation the longest lead time in the
+project. The entity already existed and the D-U-N-S is already issued, so Apple
+enrolment is now one of the *cheapest* remaining items. **Art commissioning is
+the schedule risk** ([doc 18](18-automation-vs-manual.md) §2.9) — it is the only
+thing left with a multi-week external dependency, and it should start in Phase 2.
 
 ## 5. Separation despite common ownership
 

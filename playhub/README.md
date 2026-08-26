@@ -61,6 +61,7 @@ a repo scoped to a different product), separate issue tracker, and a clean
 | 25 | [Repository Migration Plan](docs/25-repository-migration-plan.md) | ⏸ Exact extraction steps — awaiting approval |
 | 26 | [Name Candidates](docs/26-naming-candidates.md) | Ten options, honestly assessed |
 | 27 | [Phase 0 Status](docs/27-phase-0-status.md) | **What is built, compiled and tested right now** |
+| 28 | [Public Repo Exposure](docs/28-public-repo-exposure.md) | ⚠️ This repository is public — what that means and what to do |
 
 ## Running it
 

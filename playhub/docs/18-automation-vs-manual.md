@@ -31,8 +31,10 @@ Full detail and the verification checklist: [doc 24](24-apple-account-and-identi
    entity domain (`kicksstand.co` / `kicksstandllc.com` appear free) and publish
    a real corporate one-pager. A placeholder page is an explicit rejection reason.
 3. **Create a work email on that domain.** A gmail.com address is rejected.
-4. **Open:** Apple's D-U-N-S lookup. **Search before requesting** — Kicks-Stand
-   LLC may already be in D&B's database. Allow ~5 business days if not.
+4. ✅ **D-U-N-S: already obtained.** Instead, **verify the D&B record** — its
+   legal name and address must match INBiz, and a record created years ago at
+   formation often carries a stale address. Corrections go through D&B and take
+   a few days, so check this *before* starting enrolment.
 5. **Open:** <https://developer.apple.com/programs/enroll/> → enrol as an
    **Organization**. Pay $99/yr. Complete identity verification; Apple may
    telephone to confirm your authority to bind the LLC.
@@ -133,9 +135,11 @@ Review the PR · approve the TestFlight build · run the manual device pass (doc
 §6) · submit · answer any review questions.
 
 ## 4. What would make this harder, and how to avoid it
-- **Don't request the D-U-N-S before settling the LLC's name.** It must match the
-  registered name exactly; renaming afterwards means re-registering and
-  re-verifying with Apple ([doc 24 §1](24-apple-account-and-identifiers.md)).
+- **Don't rename the LLC now.** The D-U-N-S is issued against the current name;
+  renaming means a D&B record update and an Apple account name change on top of
+  the Indiana filing ([doc 24 §1](24-apple-account-and-identifiers.md)).
+- **Don't start enrolment before checking the D&B record.** A stale address on a
+  years-old record fails verification, and fixing it takes days.
 - **Don't enrol with the LLC's home address on file.** It becomes the publicly
   published EU DSA trader address on your App Store product page.
 - **Don't upload a build under the provisional bundle ID.** It is fixed from the

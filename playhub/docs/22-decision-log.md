@@ -19,6 +19,7 @@ Decisions the owner has made, in the order they were settled. Supersedes the
 
 | # | Decision | Detail | Docs affected |
 | --- | --- | --- | --- |
+| D9 | **D-U-N-S obtained** | Kicks-Stand LLC has a D-U-N-S on file. The number is deliberately **not** stored in this public repository; the remaining task is verifying the D&B record's name and address match INBiz | [24 §3.4](24-apple-account-and-identifiers.md) |
 | D6 | **Kicks-Stand LLC is the publisher** | The existing Indiana LLC owns and publishes this product. **No new entity.** Supersedes my earlier recommendation — I found no material legal, tax, Apple, liability or branding reason to form one, and App Transfer covers a future spin-out | **[24](24-apple-account-and-identifiers.md)** |
 | D7 | **Complete separation despite common ownership** | Brand, repository, bundle ID, infrastructure, **repo-scoped secrets**, analytics and product stay separate. The legal entity and the Apple Team ID are the only shared layers, and the Team ID is shared by construction | [24 §5](24-apple-account-and-identifiers.md), [25](25-repository-migration-plan.md) |
 | D8 | **Kite stays provisional** | The brand is not committed until trademark clearance completes. The bundle ID waits on it too, since a bundle ID cannot change after the first build upload | [26](26-naming-candidates.md) |
@@ -41,9 +42,10 @@ Decisions the owner has made, in the order they were settled. Supersedes the
 
 | # | Question | Blocks | Recommendation |
 | --- | --- | --- | --- |
+| Q7 | **Should `SG-Build` stay public?** | Nothing technically — but 27 documents of product strategy, roadmap, pricing analysis and the intended brand name are publicly readable right now | Extract to a **private** repo ([doc 25](25-repository-migration-plan.md)). See [doc 28](28-public-repo-exposure.md) for what is currently exposed and why the brand name is the part that matters |
 | Q1 | **Approve the repository migration plan?** | Steps A–E in [doc 25](25-repository-migration-plan.md). Phase 0 continues meanwhile | Approve after the Phase 0 scaffold lands, so the new repo's first commit is a green, tested project |
 | Q2 | **Which name?** | The domain, which blocks Apple enrolment, which blocks distribution | **Kite**, alternate **Lantern**, safe harbour **Playgrove** ([doc 26](26-naming-candidates.md)) |
-| Q3 | **Rename Kicks-Stand LLC, or keep the name?** | D-U-N-S must match the exact legal name, so renaming *after* it is issued costs weeks of re-verification | Decide either way this week. Keeping it is fine — just know the App Store seller line will read "Kicks-Stand LLC" ([doc 24 §1](24-apple-account-and-identifiers.md)) |
+| ~~Q3~~ | ~~Rename Kicks-Stand LLC?~~ | **Closed.** The D-U-N-S is issued against the current name, so renaming is now a multi-week detour rather than a one-week decision. Kicks-Stand LLC is the name Apple gets, and the App Store seller line will read that way ([doc 24 §1](24-apple-account-and-identifiers.md)) |
 | Q5 | **Entity website: patch strideguide.co, or register an entity domain?** | Apple enrolment — the current site names no legal entity at all | Option B: register `kicksstand.co` or `kicksstandllc.com` (both appear free) and publish a real corporate one-pager ([doc 24 §3.2](24-apple-account-and-identifiers.md)) |
 | Q6 | **Is the LLC's address of record your home?** | It becomes the **publicly published** EU DSA trader address on the App Store product page | Move to a registered-agent or commercial address before enrolling ([doc 24 §1](24-apple-account-and-identifiers.md)) |
 | Q4 | Which GitHub owner/org holds the new repo | Migration step A | Personal account now, transfer to the entity's org once it exists |
