@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Builds · RESORSA{% endblock %}
+{% block content %}
+  <h1>Builds</h1>
+  {% if builds %}
+    <table>
+      <thead><tr><th>Name</th><th>Stage</th><th>Customer</th><th>Updated</th></tr></thead>
+      <tbody>
+        {% for build in builds %}
+          <tr>
+            <td><a href="{{ url_for('show_build', build_id=build.id) }}">{{ build.name }}</a></td>
+            <td><span class="stage">{{ build.lifecycle_stage.value }}</span></td>
+            <td>{{ build.customer or '—' }}</td>
+            <td>{{ build.updated_at.strftime('%Y-%m-%d %H:%M UTC') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty">No builds yet. <a href="{{ url_for('new_build') }}">Create the first one.</a></p>
+  {% endif %}
+{% endblock %}

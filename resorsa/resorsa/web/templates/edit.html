@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ build.name }} · RESORSA{% endblock %}
+{% block content %}
+  <h1>Edit build</h1>
+  <form method="post" action="{{ url_for('update_build', build_id=build.id) }}">
+    {% include "_form.html" %}
+    <div class="actions">
+      <button type="submit">Save changes</button>
+      <a href="{{ url_for('show_build', build_id=build.id) }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

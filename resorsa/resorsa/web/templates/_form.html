@@ -1,0 +1,26 @@
+{# Shared create/edit form body. Expects `values` and optional `error`. #}
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<label>Name <span class="required">required</span>
+  <input type="text" name="name" value="{{ values.get('name', '') }}" required autofocus>
+</label>
+<label>Lifecycle stage
+  <select name="lifecycle_stage">
+    {% for stage in stages %}
+      <option value="{{ stage.value }}"
+        {% if values.get('lifecycle_stage', 'DEFINE') == stage.value %}selected{% endif %}>{{ stage.value }}</option>
+    {% endfor %}
+  </select>
+</label>
+{% for field, label, hint in [
+  ('description', 'Description', 'What is this build, in a sentence or two?'),
+  ('target', 'Target', 'What outcome counts as done?'),
+  ('current_state', 'Current state', 'Where does it stand right now?'),
+  ('customer', 'Customer', 'Who is this for?'),
+  ('problem', 'Problem', 'What problem does it solve for them?'),
+  ('constraints', 'Constraints', 'Time, budget, tech, policy limits.'),
+  ('resources', 'Resources', 'People, tools, data, money available.')
+] %}
+  <label>{{ label }}
+    <textarea name="{{ field }}" rows="3" placeholder="{{ hint }}">{{ values.get(field, '') }}</textarea>
+  </label>
+{% endfor %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ build.name }} · RESORSA{% endblock %}
+{% block content %}
+  <h1>{{ build.name }}</h1>
+  <p class="meta">
+    <span class="stage">{{ build.lifecycle_stage.value }}</span>
+    Created {{ build.created_at.strftime('%Y-%m-%d %H:%M UTC') }} ·
+    Updated {{ build.updated_at.strftime('%Y-%m-%d %H:%M UTC') }}
+  </p>
+  <dl>
+    {% for field, label in [
+      ('description', 'Description'), ('target', 'Target'), ('current_state', 'Current state'),
+      ('customer', 'Customer'), ('problem', 'Problem'), ('constraints', 'Constraints'),
+      ('resources', 'Resources')
+    ] %}
+      <dt>{{ label }}</dt>
+      <dd>{{ build[field] or '—' }}</dd>
+    {% endfor %}
+    <dt>ID</dt><dd><code>{{ build.id }}</code></dd>
+  </dl>
+  <div class="actions">
+    <a class="button" href="{{ url_for('edit_build', build_id=build.id) }}">Edit</a>
+    <a href="{{ url_for('index') }}">Back to all builds</a>
+  </div>
+{% endblock %}

@@ -1,11 +1,12 @@
 # Stride Guide™
 
-This repo holds two things:
+This repo holds three things:
 
 | | |
 | --- | --- |
 | **[Product blueprint](docs/README.md)** | PRD, UX spec, recommendation engine, data model and build plan for **Stride Guide FitOS** — the store-side fitting interface. Start here. |
 | **Landing page** (this file, below) | The marketing site at the repo root. |
+| **[RESORSA](resorsa/README.md)** | A small Python web app for tracking builds through eight lifecycle stages. First tester-ready slice; run and test instructions for Windows are in its README. |
 
 ---
 
