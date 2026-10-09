@@ -2,39 +2,22 @@
 
 **Status: bring-up / protocol foundation only. Not a connected scanner.**
 
-## October 9 schematic inspection — hardware identity blocker
+## Hardware revision reconciliation — October 9, 2026
 
-Source: uploaded EasyEDA JSON `SCH_SGMVP_2026-08-05(1).json`
-(title `SGMVP`, one `Sheet_1`, editor 6.5.57).
+**Confirmed by founder:** the active bring-up controller is an **ESP32-S3 development unit**. The prior EasyEDA JSON (`SCH_SGMVP_2026-08-05(1).json`) describes a **different/older ESP32-WROOM-32U design**. Do not use that schematic for S3 GPIO assignments.
 
-**This is NOT an ESP32-S3 schematic.** U1 is
-`ESP32-WROOM-32U(16MB)` / `ESP32-WROOM-32U-N16`, an original ESP32
-module. The `firmware/esp32-s3/` sketch in this PR is therefore
-**not a firmware target for this schematic or board**. Do not select an
-ESP32-S3 board profile or flash an ESP32-S3 build onto the assembled
-hardware. We need confirmation whether the actual PCB is this design
-or a newer ESP32-S3 revision.
+**Newer source:** uploaded Flux export `SG_MVP_GBRs(1).zip`, project `Stride Guide MVP Controller`, revision `#8b50d75e`, dated August 3, 2026. Its BOM specifies:
+- U1: **ESP32-S3-WROOM-1-N16R8** (integrated module; the separately used S3 dev board's exact pinout remains to be confirmed).
+- U4, U5, U10, U11: **four CD74HC4067M96** analog multiplexers.
+- U6: **one HX711** ADC IC, not four HX711 devices.
+- U3: AP2112K-3.3TRG1 regulator; U2: LM66100-Q1; J9: USB4105-GF-A.
+- Headers/connectors J1–J14 and other passives, see BOM.
 
-The JSON shows:
-- Four `CD74HC4067PWR` 16:1 multiplexers (U2–U5, annotated as row
-  and column banks).
-- One `HX711` IC, not four independent HX711s.
-- One `AP2112K-3.3` regulator, USB-C symbol, and connectors.
-- **Only 16 short `W` wire segments** across 122 schematic shapes.
-  No complete MCU-to-mux/HX711 net routing is established by this
-  export. A placed symbol or nearby text is not proof of connectivity.
-- The file alone does not establish an implemented 24×24 sensing
-  topology, four separately sampled load cells, a verified GPIO
-  mapping, USB CDC compatibility, or functional power distribution.
+**Critical PCB export warning:** `stride-guide-mvp-controller-edge_cuts.gbr` outlines approximately **160 mm × 10 mm**, from x=10.045..170.045 mm, y=-110..-100 mm. The supplied `pick_and_place.csv` lists **50 component centers**, of which **only two** (C9 and C10) fall within those outline bounds. Components extend from x=-72.175..113.0859 mm and y=-184.2603..-56.93 mm. This suggests the export's board outline and component placement are inconsistent. **Do not submit these Gerbers for manufacturing without opening the design in the source CAD tool, resolving outline/placement, and passing DRC/fabrication checks.** This is an export-level geometry check, not a full electrical DRC.
 
-**Hard gate:** obtain the actual production revision schematic/netlist
-and confirm the assembled MCU module. If this WROOM-32U board is the
-one to bring up, create an ESP32-classic UART/USB-bridge sketch under a
-different target directory and design pin assignments from a complete
-netlist. If an S3 revision exists, supply its matching schematic
-before any S3 GPIO mapping. The provisional `sg.v1` payload remains
-a software contract only, not an assertion that the electronics can
-produce 576 independently measured samples.
+**Firmware implication:** keep the ESP32-S3 Arduino heartbeat sketch as the correct controller family. It is still a **non-measuring bring-up sketch**. Do not assume the dev-board GPIO mapping equals the integrated-module PCB routing. Obtain the Flux schematic/netlist and confirm the exact S3 development-board variant and external wiring before implementing multiplexed analog reads, HX711 sampling, or calibration.
+
+**Unresolved:** actual 24×24 matrix circuit topology; mux select/enable and signal GPIOs; ADC input pins and voltage levels; HX711 DOUT/SCK wiring and whether four load cells share a bridge/one HX711; physical USB connection and device provisioning. A BOM and Gerber package alone do not settle these questions.
 
 ## Existing foundations (preserved)
 
