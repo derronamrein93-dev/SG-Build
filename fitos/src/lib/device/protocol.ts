@@ -128,10 +128,6 @@ export class DeviceLineDecoder {
   private pending = '';
   push(chunk: string): DeviceFrame[] {
     this.pending += chunk;
-    if (Buffer.byteLength(this.pending, 'utf8') > MAX_LINE_BYTES * 2) {
-      this.pending = '';
-      fail('serial buffer exceeded limit');
-    }
     const result: DeviceFrame[] = [];
     let newline: number;
     while ((newline = this.pending.indexOf('\n')) >= 0) {
