@@ -2,6 +2,40 @@
 
 **Status: bring-up / protocol foundation only. Not a connected scanner.**
 
+## October 9 schematic inspection — hardware identity blocker
+
+Source: uploaded EasyEDA JSON `SCH_SGMVP_2026-08-05(1).json`
+(title `SGMVP`, one `Sheet_1`, editor 6.5.57).
+
+**This is NOT an ESP32-S3 schematic.** U1 is
+`ESP32-WROOM-32U(16MB)` / `ESP32-WROOM-32U-N16`, an original ESP32
+module. The `firmware/esp32-s3/` sketch in this PR is therefore
+**not a firmware target for this schematic or board**. Do not select an
+ESP32-S3 board profile or flash an ESP32-S3 build onto the assembled
+hardware. We need confirmation whether the actual PCB is this design
+or a newer ESP32-S3 revision.
+
+The JSON shows:
+- Four `CD74HC4067PWR` 16:1 multiplexers (U2–U5, annotated as row
+  and column banks).
+- One `HX711` IC, not four independent HX711s.
+- One `AP2112K-3.3` regulator, USB-C symbol, and connectors.
+- **Only 16 short `W` wire segments** across 122 schematic shapes.
+  No complete MCU-to-mux/HX711 net routing is established by this
+  export. A placed symbol or nearby text is not proof of connectivity.
+- The file alone does not establish an implemented 24×24 sensing
+  topology, four separately sampled load cells, a verified GPIO
+  mapping, USB CDC compatibility, or functional power distribution.
+
+**Hard gate:** obtain the actual production revision schematic/netlist
+and confirm the assembled MCU module. If this WROOM-32U board is the
+one to bring up, create an ESP32-classic UART/USB-bridge sketch under a
+different target directory and design pin assignments from a complete
+netlist. If an S3 revision exists, supply its matching schematic
+before any S3 GPIO mapping. The provisional `sg.v1` payload remains
+a software contract only, not an assertion that the electronics can
+produce 576 independently measured samples.
+
 ## Existing foundations (preserved)
 
 - `scan` and `scan_derivation` already store capture provenance and derived measurements.
