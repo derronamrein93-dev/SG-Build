@@ -22,6 +22,9 @@ export default async function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-6">
         <section className="space-y-6">
+          {process.env.NODE_ENV !== 'production' && process.env.FITOS_REPORTING_DEMO_ENABLED === 'true' && (
+            <Link href="/reporting" className="btn-ghost w-full">Store reporting →</Link>
+          )}
           <Link href="/fitting/new" className="btn-primary w-full text-[19px] !min-h-[120px] rounded-card">
             + New Fitting
           </Link>
