@@ -1,0 +1,32 @@
+name: FitOS reporting checks
+
+on:
+  push:
+    branches:
+      - chatgpt/fitos-reporting-foundation
+  pull_request:
+    paths:
+      - 'fitos/**'
+      - '.github/workflows/fitos-reporting.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reporting-unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fitos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: fitos/package-lock.json
+      - run: npm ci
+      - name: Reporting unit tests
+        run: npx tsx --test src/lib/reporting/*.test.ts
+      - name: TypeScript validation
+        run: npx tsc --noEmit
