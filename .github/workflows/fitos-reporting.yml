@@ -27,6 +27,6 @@ jobs:
           cache-dependency-path: fitos/package-lock.json
       - run: npm ci
       - name: Reporting unit tests
-        run: npx tsx --test src/lib/reporting/*.test.ts
+        run: npx tsx --test src/lib/reporting/*.test.ts src/lib/customerSms.test.ts
       - name: TypeScript validation
         run: npx tsc --noEmit
