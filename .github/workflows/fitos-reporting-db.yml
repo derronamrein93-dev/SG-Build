@@ -1,0 +1,61 @@
+name: FitOS reporting database isolation
+
+on:
+  push:
+    branches:
+      - chatgpt/fitos-reporting-foundation
+  pull_request:
+    paths:
+      - 'fitos/db/**'
+      - '.github/workflows/fitos-reporting-db.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reporting-database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    defaults:
+      run:
+        working-directory: fitos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize isolated database roles
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "create role fitos_owner login password 'fitos'" \
+            -c "create role fitos_app nologin" \
+            -c "create role fitos_svc nologin bypassrls" \
+            -c "grant fitos_app,fitos_svc to fitos_owner" \
+            -c "create database fitos owner fitos_owner"
+      - name: Apply every FitOS migration
+        env:
+          PGPASSWORD: fitos
+        run: |
+          set -euo pipefail
+          for migration in db/migrations/*.sql; do
+            echo "Applying ${migration}"
+            psql -h 127.0.0.1 -U fitos_owner -d fitos -v ON_ERROR_STOP=1 -f "${migration}" > /dev/null
+          done
+      - name: Existing tenant isolation suite
+        env:
+          PGPASSWORD: fitos
+        run: psql -h 127.0.0.1 -U fitos_owner -d fitos -v ON_ERROR_STOP=1 -f db/test/isolation.sql
+      - name: Reporting cross-store isolation suite
+        env:
+          PGPASSWORD: fitos
+        run: psql -h 127.0.0.1 -U fitos_owner -d fitos -v ON_ERROR_STOP=1 -f db/test/reporting_isolation.sql
