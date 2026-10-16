@@ -60,6 +60,11 @@ export default async function ReportingPage({
         </label>
         <button type="submit" className="btn-primary">Apply dates</button>
       </form>
+      <div className="mt-4 flex justify-end">
+        <a className="btn-ghost" href={`/api/reporting/export?from=${encodeURIComponent(from)}&through=${encodeURIComponent(through)}`}>
+          Export metrics CSV
+        </a>
+      </div>
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6"
         aria-label="Store reporting metrics">
         {metrics.map(m => (
