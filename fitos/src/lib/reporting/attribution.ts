@@ -28,7 +28,10 @@ export async function linkFittingSale(
       insert into fitting_sale_attribution
         (fitting_session_id,sale_id,organization_id,location_id,method,recorded_by_user_id)
       values ($1,$2,$3,$4,'explicit',$5)
-      on conflict (fitting_session_id,sale_id) do nothing
+      on conflict (fitting_session_id,sale_id) do update
+      set method='explicit', recorded_by_user_id=excluded.recorded_by_user_id,
+          recorded_at=now()
+      where fitting_sale_attribution.method <> 'explicit'
     `, [fittingId, saleId, ctx.organizationId, ctx.locationId, ctx.userId ?? null]);
     return { linked: Boolean(rowCount) };
   });
