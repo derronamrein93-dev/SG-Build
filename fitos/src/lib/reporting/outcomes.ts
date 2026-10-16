@@ -1,5 +1,6 @@
 /** Store-scoped reporting. No user-supplied tenant identifiers are accepted. */
 import { withTenant, type TenantContext } from '../db/client';
+import { subtractUsd } from './money';
 
 export interface ReportRange { start: string; end: string; }
 export function parseReportRange(start: string, end: string): ReportRange {
@@ -69,7 +70,7 @@ export async function storeOutcomes(ctx: TenantContext, range: ReportRange) {
       refundEvents: Number(refunds[0].refund_events),
       refundedTotal: refunds[0].refunded_total,
       // This is a period-based receipts proxy, not a cohort's net sales.
-      periodNetReceipts: (Number(sales[0].gross_sales) - Number(refunds[0].refunded_total)).toFixed(2),
+      periodNetReceipts: subtractUsd(sales[0].gross_sales, refunds[0].refunded_total),
       // Missing POS linkage is not evidence of no purchase.
       caveat: 'Linked sales are observational, not incremental revenue. Missing POS coverage may understate conversion.',
     };
