@@ -50,6 +50,12 @@ export async function storeOutcomes(ctx: TenantContext, range: ReportRange) {
       from retail_sale where organization_id=$1 and location_id=$2
         and status='completed' and occurred_at >= $3 and occurred_at < $4
     `, [ctx.organizationId, ctx.locationId, start, end]);
+    const { rows: refunds } = await c.query(`
+      select count(*)::int as refund_events, coalesce(sum(r.amount),0)::text as refunded_total
+      from retail_refund r join retail_sale s on s.id=r.sale_id
+      where s.organization_id=$1 and s.location_id=$2
+        and r.occurred_at >= $3 and r.occurred_at < $4
+    `, [ctx.organizationId, ctx.locationId, start, end]);
     const completed = Number(fittings[0].completed_fittings);
     const converted = Number(linked[0].converted_fittings);
     return {
@@ -60,6 +66,10 @@ export async function storeOutcomes(ctx: TenantContext, range: ReportRange) {
       linkedRevenue: linked[0].linked_revenue,
       storeTransactions: Number(sales[0].transactions),
       storeGrossSales: sales[0].gross_sales,
+      refundEvents: Number(refunds[0].refund_events),
+      refundedTotal: refunds[0].refunded_total,
+      // This is a period-based receipts proxy, not a cohort's net sales.
+      periodNetReceipts: (Number(sales[0].gross_sales) - Number(refunds[0].refunded_total)).toFixed(2),
       // Missing POS linkage is not evidence of no purchase.
       caveat: 'Linked sales are observational, not incremental revenue. Missing POS coverage may understate conversion.',
     };
