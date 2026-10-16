@@ -15,7 +15,7 @@ insert into retail_sale_line (sale_id,line_number,quantity,unit_price) values
  ('aaaaaaaa-aaaa-0000-0000-000000000002',1,1,200),
  ('bbbbbbbb-aaaa-0000-0000-000000000001',1,1,300);
 set role fitos_app;
-set app.organization_id = 'aaaaaaaa-0000-0000-000000000001';
+set app.organization_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 set app.location_id = 'aaaaaaaa-1111-0000-0000-000000000001';
 set app.bypass_location_scope = 'false';
 
