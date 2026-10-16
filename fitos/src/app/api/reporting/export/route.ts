@@ -29,7 +29,10 @@ export async function GET(req: NextRequest) {
       ['linked_transactions',data.linkedTransactions,data.start,data.end],
       ['linked_revenue_usd',data.linkedRevenue,data.start,data.end],
       ['store_transactions',data.storeTransactions,data.start,data.end],
-      ['store_gross_sales_usd',data.storeGrossSales,data.start,data.end],
+      ['store_sales_including_tax_usd',data.storeGrossSales,data.start,data.end],
+      ['refund_events',data.refundEvents,data.start,data.end],
+      ['refunded_total_usd',data.refundedTotal,data.start,data.end],
+      ['period_net_receipts_usd',data.periodNetReceipts,data.start,data.end],
     ]);
     return new NextResponse(csv, {
       headers: {
