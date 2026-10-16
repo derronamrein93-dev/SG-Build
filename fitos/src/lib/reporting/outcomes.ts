@@ -1,5 +1,5 @@
 /** Store-scoped reporting. No user-supplied tenant identifiers are accepted. */
-import { withTenant, type TenantContext } from './db/client';
+import { withTenant, type TenantContext } from '../db/client';
 
 export interface ReportRange { start: string; end: string; }
 export function parseReportRange(start: string, end: string): ReportRange {
