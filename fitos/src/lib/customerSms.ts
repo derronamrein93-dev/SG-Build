@@ -1,5 +1,5 @@
-import { withTenant, type TenantContext } from '../db/client';
-import { normalizePhone, phoneLookupHash, last4 } from '../db/identity';
+import { withTenant, type TenantContext } from './db/client';
+import { normalizePhone, phoneLookupHash, last4 } from './db/identity';
 import { randomUUID } from 'crypto';
 
 function providerConfig() {
