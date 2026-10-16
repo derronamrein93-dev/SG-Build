@@ -39,7 +39,10 @@ export default async function ReportingPage({
     { label: 'Directly linked purchases', value: data.convertedFittings.toLocaleString() },
     { label: 'Direct conversion', value: data.directConversionPercent === null ? 'N/A' : data.directConversionPercent + '%' },
     { label: 'Store transactions', value: data.storeTransactions.toLocaleString() },
-    { label: 'Store gross sales', value: money(data.storeGrossSales) },
+    { label: 'Store sales incl. tax', value: money(data.storeGrossSales) },
+    { label: 'Refund events', value: data.refundEvents.toLocaleString() },
+    { label: 'Refunded amount', value: money(data.refundedTotal) },
+    { label: 'Period net receipts', value: money(data.periodNetReceipts) },
     { label: 'Scan-associated transactions', value: data.linkedTransactions.toLocaleString() },
     { label: 'Scan-associated revenue', value: money(data.linkedRevenue) },
   ];
@@ -84,7 +87,7 @@ export default async function ReportingPage({
           is not incremental revenue caused by Stride Guide.
         </p>
         <p className="text-[13px] text-ink-muted mt-3">
-          Store sales use transaction dates. Fittings and direct conversion use
+          Store sales use transaction dates; refunds use refund dates. Period net receipts subtracts refunds in the selected period from sales in that period, regardless of original sale date. Fittings and direct conversion use
           fitting completion dates. The selected calendar days are interpreted
           in the store’s local timezone. Monetary figures assume USD; mixed
           currency support requires currency-specific reporting.
