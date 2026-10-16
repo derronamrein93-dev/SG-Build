@@ -3,6 +3,7 @@ import { currentContext } from '../../lib/session';
 import { withTenant } from '../../lib/db/client';
 import { storeOutcomes } from '../../lib/reporting/outcomes';
 import { localCalendarRange } from '../../lib/reporting/dates';
+import { localToday } from '../../lib/reporting/today';
 import { assertReportingAccess } from '../../lib/reporting/access';
 
 export const dynamic = 'force-dynamic';
@@ -24,9 +25,7 @@ export default async function ReportingPage({
   if (!rows.length) throw new Error('Location not found');
   const location = rows[0] as { name: string; timezone: string };
   const params = await searchParams;
-  const today = new Intl.DateTimeFormat('en-CA', {
-    timeZone: location.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
+  const today = localToday(location.timezone);
   const from = asDay(params.from, new Date(Date.parse(today + 'T00:00:00Z') - 29 * 86400000).toISOString().slice(0, 10));
   const through = asDay(params.through, today);
   const range = localCalendarRange(from, through, location.timezone);
