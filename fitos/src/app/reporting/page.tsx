@@ -60,7 +60,8 @@ export default async function ReportingPage({
         </label>
         <button type="submit" className="btn-primary">Apply dates</button>
       </form>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex justify-end items-center gap-4">
+        <Link href="/reporting/import" className="btn-ghost">Validate sales CSV</Link>
         <a className="btn-ghost" href={`/api/reporting/export?from=${encodeURIComponent(from)}&through=${encodeURIComponent(through)}`}>
           Export metrics CSV
         </a>
