@@ -96,9 +96,19 @@ export async function ingestSale(ctx: TenantContext, input: SaleInput) {
           sale.total !== cents(input.totalCents))
         throw new Error('Conflicting or inaccessible transaction identifier');
       const lines = await c.query(
-        'select count(*)::int as n from retail_sale_line where sale_id=$1', [sale.id]);
-      if (lines.rows[0].n !== input.lines.length)
-        throw new Error('Conflicting transaction line count');
+        'select line_number, sku, brand, model, quantity::text, unit_price::text, discount::text from retail_sale_line where sale_id=$1 order by line_number', [sale.id]);
+      if (lines.rows.length !== input.lines.length ||
+          lines.rows.some((row, i) => {
+            const line = input.lines[i];
+            return row.line_number !== i + 1 ||
+              row.sku !== (line.sku ?? null) ||
+              row.brand !== (line.brand ?? null) ||
+              row.model !== (line.model ?? null) ||
+              Number(row.quantity) !== line.quantity ||
+              row.unit_price !== cents(line.unitPriceCents) ||
+              row.discount !== cents(line.discountCents ?? 0);
+          }))
+        throw new Error('Conflicting transaction line items');
       return { id: sale.id as string, inserted: false };
     }
     const saleId = rows[0].id as string;
