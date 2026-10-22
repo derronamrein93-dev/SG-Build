@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { withTenant } from '../../../lib/db/client';
 import { currentContext } from '../../../lib/session';
+import { customerPurchaseAndFeedback } from '../../../lib/customer-outcomes';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export default async function CustomerProfile({ params }: { params: { id: string
   });
   if (!result) notFound();
   const { customer, fittings } = result;
+  const outcomes = await customerPurchaseAndFeedback(params.id);
   return (
     <main className="max-w-[1000px] mx-auto p-8">
       <Link href="/" className="text-accent text-sm">← FitOS dashboard</Link>
@@ -55,7 +57,28 @@ export default async function CustomerProfile({ params }: { params: { id: string
           </ul>
         )}
       </section>
-      <p className="text-ink-muted text-sm mt-6">Purchase history and post-wear feedback are planned for the next milestone. This view uses existing tenant and location access policies.</p>
+      <section className="card mt-6">
+        <h2 className="text-xl font-semibold">Purchases and post-wear feedback</h2>
+        {outcomes.length === 0 ? <p className="mt-4 text-ink-secondary">No recorded purchase outcomes or feedback yet.</p> : (
+          <ul className="divide-y divide-line mt-4">
+            {outcomes.map(o => (
+              <li key={o.fitting_session_id} className="py-4">
+                <Link className="text-accent font-medium" href={`/fitting/${o.fitting_session_id}/report`}>
+                  Fitting · {new Date(o.recorded_at).toLocaleDateString('en-US')}
+                </Link>
+                <p className="text-sm mt-1">Outcome: {o.outcome.replaceAll('_', ' ')}</p>
+                {o.purchased_size && <p className="text-sm">Purchased size: {o.purchased_size}</p>}
+                {o.sale_value && <p className="text-sm">Sale value: ${o.sale_value}</p>}
+                {o.returned !== null && <p className="text-sm">Returned: {o.returned ? 'Yes' : 'No'}{o.return_reason ? ` · ${o.return_reason}` : ''}</p>}
+                {o.satisfaction && <p className="text-sm">Satisfaction: {o.satisfaction}</p>}
+                {o.response && <p className="text-sm">Follow-up: {o.response}</p>}
+                {o.response_note && <p className="text-sm text-ink-secondary">Feedback: {o.response_note}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <p className="text-ink-muted text-sm mt-6">Records shown are restricted to the current retailer's authorized customer access.</p>
     </main>
   );
 }
