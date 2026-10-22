@@ -12,13 +12,14 @@ type Fitting = {
   visit_number: number | null; recommendation_count: string;
 };
 
-export default async function CustomerProfile({ params }: { params: { id: string } }) {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.id)) notFound();
+export default async function CustomerProfile({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
   const result = await withTenant(currentContext(), async (db) => {
     const customer = await db.query(
       `select id, first_name, last_name, local_customer_number, phone_last4, created_at
        from organization_customer
-       where id = $1 and deleted_at is null`, [params.id]);
+       where id = $1 and deleted_at is null`, [id]);
     if (!customer.rows.length) return null;
     const fittings = await db.query<Fitting>(
       `select fs.id, fs.status, fs.started_at, fs.completed_at, fs.visit_number,
@@ -27,12 +28,12 @@ export default async function CustomerProfile({ params }: { params: { id: string
        left join recommendation r on r.fitting_session_id = fs.id
        where fs.organization_customer_id = $1
        group by fs.id
-       order by fs.started_at desc limit 100`, [params.id]);
+       order by fs.started_at desc limit 100`, [id]);
     return { customer: customer.rows[0], fittings: fittings.rows };
   });
   if (!result) notFound();
   const { customer, fittings } = result;
-  const outcomes = await customerPurchaseAndFeedback(params.id);
+  const outcomes = await customerPurchaseAndFeedback(id);
   return (
     <main className="max-w-[1000px] mx-auto p-8">
       <Link href="/" className="text-accent text-sm">← FitOS dashboard</Link>
@@ -61,7 +62,7 @@ export default async function CustomerProfile({ params }: { params: { id: string
       <section className="card mt-6">
         <h2 className="text-xl font-semibold">Record purchase and feedback</h2>
         <form action={recordFittingOutcome} className="space-y-3 mt-4">
-          <input type="hidden" name="customerId" value={params.id} />
+          <input type="hidden" name="customerId" value={id} />
           <label className="block">Completed fitting
             <select name="sessionId" required className="block w-full border rounded p-2">
               {fittings.filter(f => f.status === 'completed').map(f =>
