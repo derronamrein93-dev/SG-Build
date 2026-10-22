@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { withTenant } from '../../../lib/db/client';
 import { currentContext } from '../../../lib/session';
 import { customerPurchaseAndFeedback } from '../../../lib/customer-outcomes';
+import { recordFittingOutcome } from './outcome-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,44 @@ export default async function CustomerProfile({ params }: { params: { id: string
             ))}
           </ul>
         )}
+      </section>
+      <section className="card mt-6">
+        <h2 className="text-xl font-semibold">Record purchase and feedback</h2>
+        <form action={recordFittingOutcome} className="space-y-3 mt-4">
+          <input type="hidden" name="customerId" value={params.id} />
+          <label className="block">Completed fitting
+            <select name="sessionId" required className="block w-full border rounded p-2">
+              {fittings.filter(f => f.status === 'completed').map(f =>
+                <option key={f.id} value={f.id}>{new Date(f.started_at).toLocaleDateString()}</option>)}
+            </select>
+          </label>
+          <label className="block">Outcome
+            <select name="outcome" className="block w-full border rounded p-2">
+              <option value="purchased">Purchased</option>
+              <option value="purchased_other">Purchased other</option>
+              <option value="considering">Considering</option>
+              <option value="no_purchase">No purchase</option>
+              <option value="ordered">Ordered</option>
+            </select>
+          </label>
+          <label className="block">Sale amount
+            <input name="saleValue" type="number" min="0" step="0.01" className="block w-full border rounded p-2" />
+          </label>
+          <label className="block">Return status
+            <select name="returnStatus" className="block w-full border rounded p-2">
+              <option value="unknown">Unknown</option>
+              <option value="not_returned">Confirmed not returned</option>
+              <option value="returned">Returned</option>
+            </select>
+          </label>
+          <label className="block">Return reason
+            <input name="returnReason" maxLength={500} className="block w-full border rounded p-2" />
+          </label>
+          <label className="block">Post-wear feedback
+            <textarea name="satisfaction" maxLength={500} className="block w-full border rounded p-2" />
+          </label>
+          <button type="submit" disabled={!fittings.some(f => f.status === 'completed')} className="btn-primary">Save outcome</button>
+        </form>
       </section>
       <section className="card mt-6">
         <h2 className="text-xl font-semibold">Purchases and post-wear feedback</h2>
